@@ -12,9 +12,9 @@ namespace World {
 
         void show() {
             const auto calendar{ RE::Calendar::GetSingleton() };
-            if(calendar) {
-                if(float* ptr{ &(calendar->gameHour->value) }; ptr) {
-                    ImGui::SliderFloat("Time", ptr, 0.0f, 24.f);
+            if(calendar) [[likely]] {
+                if(float* ptr{ &(calendar->gameHour->value) }; ptr) [[likely]] {
+                    ImGui::SliderFloat("Time", ptr, 0.0F, 24.0F);
                     _sliderActive = ImGui::IsItemActive();
                     return;
                 }
@@ -27,9 +27,10 @@ namespace World {
         RE::TESRegion* _currRegionCache = nullptr;  // after fw `region` field of sky gets reset. restore from this.
 
         RE::TESRegion* getCurrentRegion() {
-            if(RE::Sky::GetSingleton()) {
-                auto ret = RE::Sky::GetSingleton()->region;
-                if(ret) {
+            const auto sky{ RE::Sky::GetSingleton() };
+            if(sky) [[likely]] {
+                auto ret{ sky->region };
+                if(ret) [[likely]] {
                     _currRegionCache = ret;
                     return ret;
                 }
@@ -61,48 +62,48 @@ namespace World {
 
         void cache() {
             _weathersToSelect.clear();
-            auto regionDataManager = RE::TESDataHandler::GetSingleton()->GetRegionDataManager();
-            if(!regionDataManager) {
+            auto regionDataManager{ RE::TESDataHandler::GetSingleton()->GetRegionDataManager() };
+            if(!regionDataManager) [[unlikely]] {
                 return;
             }
             for(auto weather : RE::TESDataHandler::GetSingleton()->GetFormArray<RE::TESWeather>()) {
-                if(!weather) {
+                if(!weather) [[unlikely]] {
                     continue;
                 }
                 auto flags = weather->data.flags;
                 if(_filters[0].second) {
-                    if(!flags.any(RE::TESWeather::WeatherDataFlag::kPleasant)) {
+                    if(flags.none(RE::TESWeather::WeatherDataFlag::kPleasant)) {
                         continue;
                     }
                 }
                 if(_filters[1].second) {
-                    if(!flags.any(RE::TESWeather::WeatherDataFlag::kCloudy)) {
+                    if(flags.none(RE::TESWeather::WeatherDataFlag::kCloudy)) {
                         continue;
                     }
                 }
                 if(_filters[2].second) {
-                    if(!flags.any(RE::TESWeather::WeatherDataFlag::kRainy)) {
+                    if(flags.none(RE::TESWeather::WeatherDataFlag::kRainy)) {
                         continue;
                     }
                 }
                 if(_filters[3].second) {
-                    if(!flags.any(RE::TESWeather::WeatherDataFlag::kSnow)) {
+                    if(flags.none(RE::TESWeather::WeatherDataFlag::kSnow)) {
                         continue;
                     }
                 }
                 if(_filters[4].second) {
-                    if(!flags.any(RE::TESWeather::WeatherDataFlag::kPermAurora)) {
+                    if(flags.none(RE::TESWeather::WeatherDataFlag::kPermAurora)) {
                         continue;
                     }
                 }
                 if(_filters[5].second) {
-                    if(!flags.any(RE::TESWeather::WeatherDataFlag::kAuroraFollowsSun)) {
+                    if(flags.none(RE::TESWeather::WeatherDataFlag::kAuroraFollowsSun)) {
                         continue;
                     }
                 }
                 if(_showCurrRegionOnly) {
-                    bool belongsToCurrRegion = false;
-                    auto currRegion          = getCurrentRegion();
+                    bool belongsToCurrRegion{ false };
+                    auto currRegion{ getCurrentRegion() };
                     if(currRegion) {  // could've cached regionData -> weathers at the cost of a bit of extra space, but this runs fine in O(n2) since there's limited # of weathers
                         for(RE::TESRegionData* regionData : currRegion->dataList->regionDataList) {
                             if(regionData->GetType() == RE::TESRegionData::Type::kWeather) {
@@ -124,11 +125,12 @@ namespace World {
         }
 
         void show() {
-            RE::TESRegion*  currRegion  = nullptr;
-            RE::TESWeather* currWeather = nullptr;
-            if(RE::Sky::GetSingleton()) {
+            RE::TESRegion*  currRegion{ nullptr };
+            RE::TESWeather* currWeather{ nullptr };
+            const auto      sky{ RE::Sky::GetSingleton() };
+            if(sky) [[likely]] {
                 currRegion  = getCurrentRegion();
-                currWeather = RE::Sky::GetSingleton()->currentWeather;
+                currWeather = sky->currentWeather;
             }
 
             // List of weathers to choose
@@ -137,8 +139,9 @@ namespace World {
                     const bool isSelected = (i == currWeather);
                     if(ImGui::Selectable(_weatherNames[i].c_str(), isSelected)) {
                         if(!isSelected) {
-                            auto sky{ RE::Sky::GetSingleton() };
-                            sky->ForceWeather(i, true);
+                            if(sky) [[likely]] {
+                                sky->ForceWeather(i, true);
+                            }
                         }
                     }
                     if(isSelected) {
@@ -163,11 +166,11 @@ namespace World {
             }
 
             // Display current region
-            if(currRegion) {
+            if(currRegion) [[likely]] {
                 ImGui::Text("Current Region:");
                 ImGui::SameLine();
                 ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "%s", _regionNames[currRegion].c_str());
-            } else {
+            } else [[unlikely]] {
                 ImGui::Text("Current region not found");
             }
 
@@ -198,7 +201,7 @@ namespace World {
                 _mods.push_back(plugin);
             }
 
-            auto data{ RE::TESDataHandler::GetSingleton() };
+            const auto data{ RE::TESDataHandler::GetSingleton() };
             // load region&weather names
             for(auto* weather : data->GetFormArray<RE::TESWeather>()) {
                 _weatherNames.insert({ weather, weather->GetFormEditorID() });
@@ -210,7 +213,8 @@ namespace World {
     }  // namespace Weather
 
     void show() {
-        if(!RE::Sky::GetSingleton() || !RE::Sky::GetSingleton()->currentWeather) {
+        const auto sky{ RE::Sky::GetSingleton() };
+        if(!sky || !sky->currentWeather) [[unlikely]] {
             ImGui::Text("World not loaded");
             return;
         }

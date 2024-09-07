@@ -12,19 +12,20 @@
 // #include "Renderer.h"
 
 void DMenu::draw() {
-    const ImVec2 screenSize  = ImGui::GetMainViewport()->Size;
-    const float  screenSizeX = screenSize.x;
-    const float  screenSizeY = screenSize.y;
+    const ImVec2 screenSize{ ImGui::GetMainViewport()->Size };
+    const float  screenSizeX{ screenSize.x };
+    const float  screenSizeY{ screenSize.y };
     ImGui::SetNextWindowSize(ImVec2(Settings::relative_window_size_h * screenSizeX, Settings::relative_window_size_v * screenSizeY));
 
-    ImGuiWindowFlags windowFlags = ImGuiWindowFlags_None;
+    SKSE::stl::enumeration windowFlags{ImGuiWindowFlags_None};
+
     if(Settings::lockWindowPos) {
-        windowFlags |= ImGuiWindowFlags_NoMove;
+        windowFlags.set(ImGuiWindowFlags_NoMove);
     }
     if(Settings::lockWindowSize) {
-        windowFlags |= ImGuiWindowFlags_NoResize;
+        windowFlags.set(ImGuiWindowFlags_NoResize);
     }
-    ImGui::Begin("dMenu", nullptr, windowFlags);
+    ImGui::Begin("dMenu", nullptr, windowFlags.get());
 
     if(ImGui::BeginTabBar("TabBar", ImGuiTabBarFlags_FittingPolicyResizeDown)) {
         if(ImGui::BeginTabItem("Trainer")) {

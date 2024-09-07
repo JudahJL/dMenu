@@ -40,13 +40,13 @@ static int                                        _selectedModIndex = -1;
 static std::map<std::string, RE::TESForm*> _items;  // items to show on AIM
 static RE::TESForm*                        _selectedItem;
 
-static bool _cached = false;
+static bool _cached{ false };
 
 static ImGuiTextFilter _modFilter;
 static ImGuiTextFilter _itemFilter;
 
 void AIM::init() {
-    if(init_) {
+    if(init_) [[unlikely]] {
         return;
     }
     std::unordered_set<RE::TESFile*> mods;
@@ -140,7 +140,7 @@ void AIM::show() {
 
     // Render the mod dropdown menu
     if(ImGui::BeginCombo("Mods", _mods[_selectedModIndex].first->GetFilename().data())) {
-        for(int i = 0; i < _mods.size(); i++) {
+        for(int i{}; i < _mods.size(); i++) {
             if(_modFilter.PassFilter(_mods[i].first->GetFilename().data())) {
                 const bool isSelected = (_mods[_selectedModIndex].first == _mods[i].first);
                 if(ImGui::Selectable(_mods[i].first->GetFilename().data(), isSelected)) {
@@ -200,26 +200,25 @@ void AIM::show() {
     ImGui::EndChild();
 
     // Show selected item info and spawn button
-    if(_selectedItem != nullptr) {
+    if(_selectedItem != nullptr) [[likely]] {
         ImGui::Text("Selected Item: ");
         ImGui::SameLine();
-        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "%s", _selectedItem->GetName());
-        static char buf[16] = "1";
+        ImGui::TextColored(ImVec4(1.0F, 0.5F, 0.0F, 1.0F), "%s", _selectedItem->GetName());
+        static char buf[16]{ "1" };
         if(ImGui::Button("Spawn", ImVec2(ImGui::GetContentRegionAvail().x * 0.2F, 0.0F))) {
-            if(RE::PlayerCharacter::GetSingleton() != nullptr) {
+            if(RE::PlayerCharacter::GetSingleton() != nullptr) [[likely]] {
                 // Spawn item
                 const std::string cmd{ std::format("player.{} {:x} {}", _selectedItem->GetFormType() == RE::FormType::NPC ? "placeatme" : "additem", _selectedItem->GetFormID(), buf) };
                 sendConsoleCommand(cmd);
             }
         }
         ImGui::SameLine();
-        ImGui::InputText("Amount", buf, 16, ImGuiInputTextFlags_CharsDecimal);
+        ImGui::InputText("Amount", buf, std::size(buf), ImGuiInputTextFlags_CharsDecimal);
     }
     //todo: make this work
     //if (ImGui::Button("Inspect", ImVec2(ImGui::GetContentRegionAvail().x * 0.2, 0))) {
     //  QUIHelper::inspect();
     //}
-    //
 
     if(!_cached) {
         cache();

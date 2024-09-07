@@ -46,7 +46,7 @@ void SetupImGuiStyle() {
     //style.FramePadding = ImVec2(4, 4);
 
     // Rounded slider grabber
-    style.GrabRounding = 12.0f;
+    style.GrabRounding = 12.0F;
 
     // Window
     colors[ImGuiCol_WindowBg]          = ImVec4{ 0.118f, 0.118f, 0.118f, 0.784f };
@@ -85,20 +85,20 @@ void SetupImGuiStyle() {
 void Renderer::D3DInitHook::thunk() {
     func();
 
-    const auto renderer = RE::BSGraphics::Renderer::GetSingleton();
-    if(!renderer) {
+    const auto renderer{ RE::BSGraphics::Renderer::GetSingleton() };
+    if(!renderer) [[unlikely]] {
         SKSE::log::error("couldn't find renderer");
         return;
     }
 
     const auto swapChain = reinterpret_cast<IDXGISwapChain*>(renderer->data.renderWindows[0].swapChain);
-    if(!swapChain) {
+    if(!swapChain) [[unlikely]] {
         SKSE::log::error("couldn't find swapChain");
         return;
     }
 
     DXGI_SWAP_CHAIN_DESC desc{};
-    if(FAILED(swapChain->GetDesc(std::addressof(desc)))) {
+    if(FAILED(swapChain->GetDesc(std::addressof(desc)))) [[unlikely]] {
         SKSE::log::error("IDXGISwapChain::GetDesc failed.");
         return;
     }
@@ -108,12 +108,12 @@ void Renderer::D3DInitHook::thunk() {
     SKSE::log::info("Initializing ImGui...");
 
     ImGui::CreateContext();
-    if(!ImGui_ImplWin32_Init(desc.OutputWindow)) {
+    if(!ImGui_ImplWin32_Init(desc.OutputWindow)) [[unlikely]] {
         SKSE::log::error("ImGui initialization failed (Win32)");
         return;
     }
 
-    if(!ImGui_ImplDX11_Init(id_3d_11device, id_3d_11device_context)) {
+    if(!ImGui_ImplDX11_Init(id_3d_11device, id_3d_11device_context)) [[unlikely]] {
         SKSE::log::error("ImGui initialization failed (DX11)");
         return;
     }
@@ -124,7 +124,7 @@ void Renderer::D3DInitHook::thunk() {
 
     WndProcHook::func = reinterpret_cast<WNDPROC>(
         SetWindowLongPtrA(desc.OutputWindow, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(WndProcHook::thunk)));
-    if(!WndProcHook::func) {
+    if(!WndProcHook::func) [[unlikely]] {
         SKSE::log::error("SetWindowLongPtrA failed!");
     }
 
@@ -136,7 +136,7 @@ void Renderer::D3DInitHook::thunk() {
     constexpr auto        FONT_SETTING_PATH{ R"(Data\SKSE\Plugins\dMenu\fonts\FontConfig.ini)" };
     CSimpleIniA           ini;
     ini.LoadFile(FONT_SETTING_PATH);
-    if(!ini.IsEmpty()) {
+    if(!ini.IsEmpty()) [[likely]] {
         if(const char* language = ini.GetValue("config", "font", nullptr); language) {
             // check if folder exists
             if(const std::string fontDir = R"(Data\SKSE\Plugins\dMenu\fonts\)"s + language; std::filesystem::exists(fontDir) && std::filesystem::is_directory(fontDir)) {
@@ -171,7 +171,7 @@ void Renderer::D3DInitHook::thunk() {
                     glyphRanges = ImGui::GetIO().Fonts->GetGlyphRangesCyrillic();
                     logger::info("Glyph range set to Cyrillic");
                 }
-            } else {
+            } else [[unlikely]] {
                 logger::info("No font found for language: {}", language);
             }
         }
@@ -192,8 +192,9 @@ void Renderer::D3DInitHook::thunk() {
 void Renderer::DXGIPresentHook::thunk(std::uint32_t a_p1) {
     func(a_p1);
 
-    if(!D3DInitHook::initialized.load())
+    if(!D3DInitHook::initialized.load()) [[unlikely]] {
         return;
+    }
 
     // prologue
     ImGui_ImplDX11_NewFrame();
@@ -220,7 +221,7 @@ void Renderer::MessageCallback(SKSE::MessagingInterface::Message* msg)  //CallBa
 {
     if(msg->type == SKSE::MessagingInterface::kDataLoaded && D3DInitHook::initialized) {
         // Read Texture only after game engine finished load all it renderer resource.
-        auto& io           = ImGui::GetIO();
+        auto& io{ ImGui::GetIO() };
         io.MouseDrawCursor = true;
         io.WantSetMousePos = true;
     }
@@ -228,7 +229,7 @@ void Renderer::MessageCallback(SKSE::MessagingInterface::Message* msg)  //CallBa
 
 bool Renderer::Install() {
     const auto g_message{ SKSE::GetMessagingInterface() };
-    if(!g_message) {
+    if(!g_message) [[unlikely]] {
         logger::error("Messaging Interface Not Found!");
         return false;
     }
@@ -267,8 +268,8 @@ void Renderer::draw() {
     //ImGui::Text("sizeX: %f, sizeYL %f", screenSizeX, screenSizeY);
 
     if(enable) {
-        if(!DMenu::initialized) {
-            const ImVec2 screenSize = ImGui::GetMainViewport()->Size;
+        if(!DMenu::initialized) [[unlikely]] {
+            const ImVec2 screenSize{ ImGui::GetMainViewport()->Size };
             DMenu::init(screenSize.x, screenSize.y);
         }
 

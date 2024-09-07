@@ -50,8 +50,7 @@ namespace Utils {
             case RE::FormType::StoryManagerEventNode:
             case RE::FormType::SoundRecord:
                 return a_form->GetFormEditorID();
-            default:
-            {
+            default: {
                 static auto tweaks = GetModuleHandle(L"po3_Tweaks");
                 static auto func   = reinterpret_cast<func_get_form_editor_id>(GetProcAddress(tweaks, "GetFormEditorID"));
                 if(func) {
@@ -63,123 +62,23 @@ namespace Utils {
     }
 }  // namespace Utils
 
-settingsLoader::~settingsLoader() {
-    log();
-}
-
-/*Load a boolean value if present.*/
-
-void settingsLoader::load(bool& settingRef, const char* key, const char* section, const bool a_bDefault) {
-    if(_ini.GetValue(section, key)) {
-        const bool val = _ini.GetBoolValue(section, key, a_bDefault);
-        settingRef     = val;
-        _loadedSettings++;
-    }
-}
-
-/*Load a float value if present.*/
-
-void settingsLoader::load(float& settingRef, const char* key, const char* section, const float a_fDefault) {
-    if(_ini.GetValue(section, key)) {
-        const auto val = static_cast<float>(_ini.GetDoubleValue(section, key, a_fDefault));
-        settingRef     = val;
-        _loadedSettings++;
-    }
-}
-
-/*Load an unsigned int value if present.*/
-
-void settingsLoader::load(uint32_t& settingRef, const char* key, const char* section, uint32_t a_uDefault) {
-    if(_ini.GetValue(section, key)) {
-        try {
-            settingRef = std::stoul(_ini.GetValue(section, key, std::to_string(a_uDefault).c_str()));
-        } catch(const std::out_of_range& e) {
-            logger::warn("settingsLoader::load: {}", e.what());
-            settingRef = a_uDefault;
-        } catch(const std::invalid_argument& e) {
-            logger::warn("settingsLoader::load: {}", e.what());
-            settingRef = a_uDefault;
-        }
-        _loadedSettings++;
-    }
-}
-
-void settingsLoader::load(spdlog::level::level_enum& settingRef, const char* key, const char* section, spdlog::level::level_enum a_uDefault) {
-    if(_ini.GetValue(section, key)) {
-        const auto val = static_cast<spdlog::level::level_enum>(_ini.GetLongValue(section, key, a_uDefault));
-        spdlog::set_level(val);
-        spdlog::flush_on(val);
-        logger::trace("Changed LogLevel to {}", spdlog::level::to_short_c_str(val));
-        settingRef = val;
-        _loadedSettings++;
-    }
-}
-
-void settingsLoader::save(const bool& settingRef, const char* key, const char* section, const char* comment) {
-    if(_ini.GetValue(section, key)) {
-        _ini.SetBoolValue(section, key, settingRef, comment, true);
-        _savedSettings++;
-    }
-}
-
-void settingsLoader::save(const float& settingRef, const char* key, const char* section, const char* comment) {
-    if(_ini.GetValue(section, key)) {
-        _ini.SetDoubleValue(section, key, settingRef, comment, true);
-        _savedSettings++;
-    }
-}
-
-void settingsLoader::save(const uint32_t& settingRef, const char* key, const char* section, const char* comment) {
-    if(_ini.GetValue(section, key)) {
-        _ini.SetDoubleValue(section, key, settingRef, comment, false);
-        _savedSettings++;
-    }
-}
-
-void settingsLoader::save(const spdlog::level::level_enum& loglevelRef, const char* key, const char* section, const char* comment) {
-    if(_ini.GetValue(section, key)) {
-        _ini.SetLongValue(section, key, loglevelRef, comment, false, true);
-        _savedSettings++;
-    }
-}
-
-/*Load an integer value if present.*/
-
-void settingsLoader::load(int& settingRef, const char* key, const char* section) {
-    if(_ini.GetValue(section, key)) {
-        const int val = static_cast<int>(_ini.GetDoubleValue(section, key));
-        settingRef    = val;
-        _loadedSettings++;
-    }
-}
-
-void settingsLoader::log() {
-    logger::info("Loaded {} settings, saved {} settings from {}.", _loadedSettings, _savedSettings, _settingsFile);
-}
-
-void settingsLoader::flush() const {
-    if(const auto error{ _ini.SaveFile(_settingsFile) }; error == SI_FAIL) {
-        logger::info("Failed to save settings file {}", _settingsFile);
-    }
-}
-
 namespace ImGui {
-    bool SliderFloatWithSteps(const char* label, float* v, const float v_min, const float v_max, const float v_step) {
-        char text_buf[64] = {};
-        ImFormatString(text_buf, IM_ARRAYSIZE(text_buf), "%g", *v);
+    bool SliderFloatWithSteps(const char* label, float& v, const float v_min, const float v_max, const float v_step) {
+        char text_buf[64]{};
+        ImFormatString(text_buf, std::size(text_buf), "%g", v);
 
         // Map from [v_min,v_max] to [0,N]
         const int  countValues   = static_cast<int>((v_max - v_min) / v_step);
-        int        v_i           = static_cast<int>((*v - v_min) / v_step);
+        int        v_i           = static_cast<int>((v - v_min) / v_step);
         const bool value_changed = SliderInt(label, &v_i, 0, countValues, text_buf);
 
         // Remap from [0,N] to [v_min,v_max]
-        *v = v_min + static_cast<float>(v_i) * v_step;
+        v = v_min + static_cast<float>(v_i) * v_step;
         return value_changed;
     }
 
     void HoverNote(const char* text, const char* note) {
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5F, 0.5F, 0.5F, 1.0F));
         ImGui::Text(note);
         ImGui::PopStyleColor();
         if(ImGui::IsItemHovered()) {
@@ -190,13 +89,13 @@ namespace ImGui {
     }
 
     bool ToggleButton(const char* str_id, bool* v) {
-        bool        ret       = false;
-        ImVec2      p         = ImGui::GetCursorScreenPos();
-        ImDrawList* draw_list = ImGui::GetWindowDrawList();
+        bool         ret{ false };
+        const ImVec2 p{ ImGui::GetCursorScreenPos() };
+        ImDrawList*  draw_list{ ImGui::GetWindowDrawList() };
 
-        const float height = ImGui::GetFrameHeight();
-        const float width  = height * 1.55f;
-        const float radius = height * 0.50f;
+        const float height{ ImGui::GetFrameHeight() };
+        const float width{ height * 1.55F };
+        const float radius{ height * 0.50F };
 
         ImGui::InvisibleButton(str_id, ImVec2(width, height));
         if(ImGui::IsItemClicked()) {
@@ -204,24 +103,21 @@ namespace ImGui {
             ret = true;
         }
 
-        float t = *v ? 1.0f : 0.0f;
+        float t{ *v ? 1.0F : 0.0F };
 
-        ImGuiContext& g = *GImGui;
+        ImGuiContext& g{ *GImGui };
         if(g.LastActiveId == g.CurrentWindow->GetID(str_id)) {
-            constexpr float ANIM_SPEED = 0.08f;
-            const float     t_anim     = ImSaturate(g.LastActiveIdTimer / ANIM_SPEED);
-            t                          = *v ? (t_anim) : (1.0f - t_anim);
+            constexpr float ANIM_SPEED{ 0.08F };
+            const float     t_anim{ ImSaturate(g.LastActiveIdTimer / ANIM_SPEED) };
+            t = *v ? (t_anim) : (1.0F - t_anim);
         }
 
-        ImU32 col_bg;
-        if(ImGui::IsItemHovered()) {
-            col_bg = ImGui::GetColorU32(ImLerp(ImVec4(0.78f, 0.78f, 0.78f, 1.0f), ImVec4(0.64f, 0.83f, 0.34f, 1.0f), t));
-        } else {
-            col_bg = ImGui::GetColorU32(ImLerp(ImVec4(0.85f, 0.85f, 0.85f, 1.0f), ImVec4(0.56f, 0.83f, 0.26f, 1.0f), t));
-        }
+        const ImU32 col_bg = ImGui::IsItemHovered() ?
+                           ImGui::GetColorU32(ImLerp(ImVec4(0.78F, 0.78F, 0.78F, 1.0F), ImVec4(0.64F, 0.83F, 0.34F, 1.0F), t)) :
+                           ImGui::GetColorU32(ImLerp(ImVec4(0.85F, 0.85F, 0.85F, 1.0F), ImVec4(0.56F, 0.83F, 0.26F, 1.0F), t));
 
-        draw_list->AddRectFilled(p, ImVec2(p.x + width, p.y + height), col_bg, height * 0.5f);
-        draw_list->AddCircleFilled(ImVec2(p.x + radius + t * (width - radius * 2.0f), p.y + radius), radius - 1.5f, IM_COL32(255, 255, 255, 255));
+        draw_list->AddRectFilled(p, ImVec2(p.x + width, p.y + height), col_bg, height * 0.5F);
+        draw_list->AddCircleFilled(ImVec2(p.x + radius + t * (width - radius * 2.0F), p.y + radius), radius - 1.5F, IM_COL32(255, 255, 255, 255));
 
         return ret;
     }
@@ -229,9 +125,9 @@ namespace ImGui {
     bool InputTextRequired(const char* label, std::string* str, ImGuiInputTextFlags flags) {
         const bool empty = str->empty();
         if(empty) {
-            ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(1.0f, 0.0f, 0.0f, 0.2f));
-            ImGui::PushStyleColor(ImGuiCol_FrameBgActive, ImVec4(1.0f, 0.0f, 0.0f, 0.2f));
-            ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(1.0f, 0.0f, 0.0f, 0.2f));
+            ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(1.0F, 0.0F, 0.0F, 0.2F));
+            ImGui::PushStyleColor(ImGuiCol_FrameBgActive, ImVec4(1.0F, 0.0F, 0.0F, 0.2F));
+            ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(1.0F, 0.0F, 0.0F, 0.2F));
         }
         const bool ret = ImGui::InputText(label, str, flags);
         if(empty) {
@@ -242,7 +138,7 @@ namespace ImGui {
 
     // Callback function to handle resizing the std::string buffer
     static int InputTextCallback(ImGuiInputTextCallbackData* data) {
-        auto* str = static_cast<std::string*>(data->UserData);
+        auto* str{ static_cast<std::string*>(data->UserData) };
         if(data->EventFlag == ImGuiInputTextFlags_CallbackResize) {
             str->resize(data->BufTextLen);
             data->Buf = &(*str)[0];
@@ -256,15 +152,12 @@ namespace ImGui {
         flags |= ImGuiInputTextFlags_CallbackResize;
 
         // Call the InputTextWithCallback function with the std::string buffer and callback function
-        bool result;
-        if(multiline) {
-            result = ImGui::InputTextMultiline(label, &text[0], text.capacity() + 1, size, flags, InputTextCallback, &text);
-        } else {
-            result = ImGui::InputText(label, &text[0], text.capacity() + 1, flags, InputTextCallback, &text);
-        }
+        const bool result{ (multiline) ?
+                                ImGui::InputTextMultiline(label, &text[0], text.capacity() + 1, size, flags, InputTextCallback, &text) :
+                                ImGui::InputText(label, &text[0], text.capacity() + 1, flags, InputTextCallback, &text) };
 
         // Check if the InputText is hovered and the right mouse button is clicked
-        if(ImGui::IsItemHovered() && ImGui::IsMouseClicked(1)) {
+        if(ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
             // Set the context menu to be shown
             ImGui::OpenPopup("InputTextContextMenu");
         }
@@ -297,19 +190,16 @@ namespace ImGui {
         flags |= ImGuiInputTextFlags_CallbackResize;
 
         // Call the InputTextWithCallback function with the std::string buffer and callback function
-        bool empty = text.empty();
+        bool empty{ text.empty() };
         if(empty) {
-            ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(1.0f, 0.0f, 0.0f, 0.2f));
-            ImGui::PushStyleColor(ImGuiCol_FrameBgActive, ImVec4(1.0f, 0.0f, 0.0f, 0.2f));
-            ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(1.0f, 0.0f, 0.0f, 0.2f));
+            ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(1.0F, 0.0F, 0.0F, 0.2F));
+            ImGui::PushStyleColor(ImGuiCol_FrameBgActive, ImVec4(1.0F, 0.0F, 0.0F, 0.2F));
+            ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(1.0F, 0.0F, 0.0F, 0.2F));
         }
-        bool result;
-        if(multiline) {
-            result = ImGui::InputTextMultiline(label, &text[0], text.capacity() + 1, size, flags, InputTextCallback, &text);
+        const bool result{ multiline ?
+            ImGui::InputTextMultiline(label, &text[0], text.capacity() + 1, size, flags, InputTextCallback, &text) :
+            ImGui::InputText(label, &text[0], text.capacity() + 1, flags, InputTextCallback, &text) };
 
-        } else {
-            result = ImGui::InputText(label, &text[0], text.capacity() + 1, flags, InputTextCallback, &text);
-        }
         if(empty) {
             ImGui::PopStyleColor(3);
         }
@@ -342,3 +232,27 @@ namespace ImGui {
         return result;
     }
 }  // namespace ImGui
+
+settingsLoader::settingsLoader(const char* settingsFile):
+    _settingsFile(settingsFile) {
+    _ini.SetUnicode();
+
+    _ini.LoadFile(settingsFile);
+    if(_ini.IsEmpty()) [[unlikely]] {
+        logger::info("Warning: {} is empty.", settingsFile);
+    }
+}
+
+settingsLoader::~settingsLoader() {
+    if(_savedSettings > 0) [[likely]] {
+        // Save the INI file and check the result
+        const auto result = _ini.SaveFile(_settingsFile);
+
+        if(result == SI_FAIL) [[unlikely]] {
+            logger::error("Failed to save settings file: {}", _settingsFile);
+        } else [[likely]] {
+            logger::info("Successfully saved settings file: {}", _settingsFile);
+        }
+    }
+    logger::info("Loaded {} settings, saved {} settings from {}.", _loadedSettings, _savedSettings, _settingsFile);
+}

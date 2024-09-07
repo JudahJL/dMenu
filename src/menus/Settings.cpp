@@ -9,41 +9,41 @@
 constexpr auto SETTINGS_FILE_PATH{ R"(Data\SKSE\Plugins\dmenu\dmenu.ini)" };
 
 namespace ini {
-    void flush() {
+    void update() {
+        constexpr auto section{ "UI" };
         settingsLoader loader(SETTINGS_FILE_PATH);
-        loader.save(Settings::relative_window_size_h, "relative_window_size_h");
-        loader.save(Settings::relative_window_size_v, "relative_window_size_v");
-        loader.save(Settings::windowPos_x, "windowPos_x");
-        loader.save(Settings::windowPos_y, "windowPos_y");
-        loader.save(Settings::lockWindowSize, "lockWindowSize");
-        loader.save(Settings::lockWindowPos, "lockWindowPos");
-        loader.save(Settings::key_toggle_dmenu, "key_toggle_dmenu");
-        loader.save(Settings::fontScale, "fontScale");
-        loader.save(Settings::log_level, "LogLevel", "Debug", "Sets the level of detail in the log: 0 = trace, 1 = debug, 2 = info, 3 = warning, 4 = error, 5 = critical error");
-        loader.flush();
+        loader.update(Settings::relative_window_size_h, section, "relative_window_size_h", nullptr);
+        loader.update(Settings::relative_window_size_v, section, "relative_window_size_v", nullptr);
+        loader.update(Settings::windowPos_x, section, "windowPos_x", nullptr);
+        loader.update(Settings::windowPos_y, section, "windowPos_y", nullptr);
+        loader.update(Settings::lockWindowSize, section, "lockWindowSize", nullptr);
+        loader.update(Settings::lockWindowPos, section, "lockWindowPos", nullptr);
+        loader.update(Settings::key_toggle_dmenu, section, "key_toggle_dmenu", nullptr);
+        loader.update(Settings::fontScale, section, "fontScale", nullptr);
+        loader.update(Settings::log_level, "LogLevel", "Level", ";Sets the level of detail in the log: trace, debug, info, warning, error, critical, off");
     }
 
     void load() {
+        constexpr auto section{ "UI" };
         settingsLoader loader(SETTINGS_FILE_PATH);
-        loader.load(Settings::relative_window_size_h, "relative_window_size_h");
-        loader.load(Settings::relative_window_size_v, "relative_window_size_v");
-        loader.load(Settings::windowPos_x, "windowPos_x");
-        loader.load(Settings::windowPos_y, "windowPos_y");
-        loader.load(Settings::lockWindowSize, "lockWindowSize");
-        loader.load(Settings::lockWindowPos, "lockWindowPos");
-        loader.load(Settings::key_toggle_dmenu, "key_toggle_dmenu");
-        loader.load(Settings::fontScale, "fontScale");
-        loader.load(Settings::log_level, "LogLevel");
+        loader.load(Settings::relative_window_size_h, section, "relative_window_size_h");
+        loader.load(Settings::relative_window_size_v, section, "relative_window_size_v");
+        loader.load(Settings::windowPos_x, section, "windowPos_x");
+        loader.load(Settings::windowPos_y, section, "windowPos_y");
+        loader.load(Settings::lockWindowSize, section, "lockWindowSize");
+        loader.load(Settings::lockWindowPos, section, "lockWindowPos");
+        loader.load(Settings::key_toggle_dmenu, section, "key_toggle_dmenu");
+        loader.load(Settings::fontScale, section, "fontScale");
+        loader.load(Settings::log_level, "LogLevel", "Level");
     }
 
-    void init() {
+    inline void init() {
         load();
     }
 }  // namespace ini
 
 namespace UI {
-    [[nodiscard]] bool show() {
-        bool         should_auto_save{ false };
+    void show() {
         const ImVec2 parentSize = ImGui::GetMainViewport()->Size;
 
         const float new_relative_window_size_h = ImGui::GetWindowWidth() / parentSize.x;
@@ -51,24 +51,20 @@ namespace UI {
 
         if(Settings::relative_window_size_h != new_relative_window_size_h) {
             Settings::relative_window_size_h = new_relative_window_size_h;
-            should_auto_save                 = true;
         }
 
         if(Settings::relative_window_size_v != new_relative_window_size_v) {
             Settings::relative_window_size_v = new_relative_window_size_v;
-            should_auto_save                 = true;
         }
 
         const auto windowPos = ImGui::GetWindowPos();
         // get windowpos
         if(Settings::windowPos_x != windowPos.x) {
             Settings::windowPos_x = windowPos.x;
-            should_auto_save      = true;
         }
 
         if(Settings::windowPos_y != windowPos.y) {
             Settings::windowPos_y = windowPos.y;
-            should_auto_save      = true;
         }
 
         // Display the relative sizes in real-time
@@ -77,9 +73,7 @@ namespace UI {
         ImGui::Text("Height: %.2f%%", Settings::relative_window_size_v * 100.0F);
 
         //ImGui::SameLine(ImGui::GetWindowWidth() - 100);
-        if(ImGui::Checkbox("Lock Size", &Settings::lockWindowSize)) {
-            should_auto_save = true;
-        }
+        ImGui::Checkbox("Lock Size", &Settings::lockWindowSize);
         //ImGui::PopStyleVar();
 
         // Display the relative positions in real-time
@@ -88,20 +82,29 @@ namespace UI {
         ImGui::Text("Y pos: %f", Settings::windowPos_y);
 
         //ImGui::SameLine(ImGui::GetWindowWidth() - 100);
-        if(ImGui::Checkbox("Lock Pos", &Settings::lockWindowPos)) {
-            should_auto_save = true;
-        }
+        ImGui::Checkbox("Lock Pos", &Settings::lockWindowPos);
         //ImGui::PopStyleVar();
 
-        if(ImGui::SliderFloat("Font Size", &Settings::fontScale, 0.5f, 2.f)) {
+        if(ImGui::SliderFloat("Font Size", &Settings::fontScale, 0.5F, 2.0F)) {
             ImGui::GetIO().FontGlobalScale = Settings::fontScale;
-            should_auto_save               = true;
         }
 
-        if(ImGui::InputInt("Toggle Key", reinterpret_cast<int*>(&Settings::key_toggle_dmenu))) {
-            should_auto_save = true;
+        ImGui::InputInt("Toggle Key", reinterpret_cast<int*>(&Settings::key_toggle_dmenu));
+        static constexpr std::array log_levels{
+            "trace",
+            "debug",
+            "info",
+            "warning",
+            "error",
+            "critical",
+            "off"
+        };
+        static int current_log_level{ spdlog::level::from_str(Settings::log_level) };
+        if(ImGui::Combo("Log Level", &current_log_level, log_levels.data(), static_cast<int>(log_levels.size()))) {
+            spdlog::set_level(spdlog::level::from_str(log_levels[current_log_level]));
+            spdlog::flush_on(spdlog::level::from_str(log_levels[current_log_level]));
+            Settings::log_level = log_levels[current_log_level];
         }
-        return should_auto_save;
     }
 }  // namespace UI
 
@@ -116,9 +119,7 @@ void Settings::show() {
 
     // Display size controls
     ImGui::Text("UI");
-    if(UI::show()) {
-        ini::flush();
-    }
+    UI::show();
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
@@ -136,10 +137,9 @@ void Settings::show() {
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.4f, 0.4f, 0.4f, 1.0f));
     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
 
-    //we now autosave
-    // if (ImGui::Button("Save")) {
-    // 	ini::flush();
-    // }
+    if(ImGui::Button("Save")) {
+        ini::update();
+    }
 
     // Restore the previous style colors
     ImGui::PopStyleColor(4);

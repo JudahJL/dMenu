@@ -17,30 +17,30 @@ void message_handler(SKSE::MessagingInterface::Message* a_msg) {
     }
 }
 
-void on_skse_init() {
+inline void on_skse_init() {
     Renderer::Install();
     Settings::init();
     ModSettings::init();  // init modsetting before everyone else
 }
 
 namespace {
-    void initialize_log() {
-        constexpr auto level{ spdlog::level::trace };
-        const auto     plugin{ SKSE::PluginDeclaration::GetSingleton() };
+    void initialize_log(const SKSE::PluginDeclaration* plugin = SKSE::PluginDeclaration::GetSingleton()) {
         auto           log = std::make_shared<spdlog::logger>(plugin->GetName().data());
-        if(REX::W32::IsDebuggerPresent()) {
-            log->sinks().emplace_back(std::make_shared<spdlog::sinks::msvc_sink_mt>());
-        } else {
+        auto& sink = log->sinks();
+        if(REX::W32::IsDebuggerPresent()) [[unlikely]] {
+            sink.emplace_back(std::make_shared<spdlog::sinks::msvc_sink_mt>());
+        } else [[likely]] {
             auto path = logger::log_directory();
             if(!path) {
                 util::report_and_fail("Failed to find standard logging directory");
             }
             *path /= fmt::format("{}.log", plugin->GetName());
-            log->sinks().emplace_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>(path->string(), true));
+            sink.emplace_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>(path->string(), true));
         }
+        const auto level{ spdlog::level::from_str(Settings::log_level) };
         log->set_level(level);
         log->flush_on(level);
-        log->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%n] [%l] [%t] [%s:%#] %v");
+        log->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%n] [%^%l%$] [%t] [%s:%#] %v");
         spdlog::set_default_logger(std::move(log));
     }
 }  // namespace
@@ -59,16 +59,16 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse) {
     //     constexpr auto wait_time{ 5s };
     //     std::this_thread::sleep_for(wait_time);
     // }
-    initialize_log();
-
     const auto plugin{ SKSE::PluginDeclaration::GetSingleton() };
+
+    initialize_log(plugin);
 
     logger::info("{} v{}", plugin->GetName(), plugin->GetVersion().string("."));
 
     SKSE::Init(a_skse);
 
     const auto messaging{ SKSE::GetMessagingInterface() };
-    if(!messaging->RegisterListener("SKSE", message_handler)) {
+    if(!messaging->RegisterListener("SKSE", message_handler)) [[unlikely]] {
         util::report_and_fail("failed to register messaging interface");
     }
 

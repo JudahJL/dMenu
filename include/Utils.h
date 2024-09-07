@@ -5,6 +5,7 @@
 inline size_t strl(const char* a_str) {
     if(a_str == nullptr)
         return 0;
+
     size_t len = 0;
     while(a_str[len] != '\0' && len < 0x7F'FF'FF'FF) {
         len++;
@@ -20,7 +21,7 @@ namespace Utils {
     template<class T>
     void loadUsefulPlugins(std::unordered_set<RE::TESFile*>& mods) {
         for(auto* form : RE::TESDataHandler::GetSingleton()->GetFormArray<T>()) {
-            if(form) {
+            if(form) [[likely]] {
                 if(!mods.contains(form->GetFile())) {
                     mods.insert(form->GetFile());
                 }
@@ -111,7 +112,7 @@ namespace Utils {
         }
 
         // For the virtual table auto-generation.
-        virtual bool Unk_01(void) { return false; }  // 01
+        virtual bool Unk_01() { return false; }  // 01
 
         [[nodiscard]] Type GetType() const {
             return reinterpret_cast<const RE::Setting*>(this)->GetType();
@@ -135,53 +136,83 @@ namespace Utils {
 
 }  // namespace Utils
 
+template<class T>
+T lexical_cast(const std::string& a_str, bool a_hex = false) {
+    const auto base{ a_hex ? 16 : 10 };
+
+    if constexpr(std::is_floating_point_v<T>) {
+        return static_cast<T>(std::stof(a_str));
+    } else if constexpr(std::is_signed_v<T>) {
+        return static_cast<T>(std::stoi(a_str, nullptr, base));
+    } else if constexpr(sizeof(T) == sizeof(std::uint64_t)) {
+        return static_cast<T>(std::stoull(a_str, nullptr, base));
+    } else {
+        return static_cast<T>(std::stoul(a_str, nullptr, base));
+    }
+}
+
 /*Helper class to load from a simple ini file.*/
 class settingsLoader
 {
+public:
+     settingsLoader() = delete;
+    ~settingsLoader();
+
+    explicit settingsLoader(const char* settingsFile);
+
+    template<class T>
+    void update(T& a_value, const char* a_section, const char* a_key, const char* a_comment) {
+        if constexpr(std::is_same_v<bool, T>) {
+            _ini.SetBoolValue(a_section, a_key, a_value, a_comment);
+            ++_savedSettings;
+        } else if constexpr(std::is_floating_point_v<T>) {
+            _ini.SetDoubleValue(a_section, a_key, a_value, a_comment);
+            ++_savedSettings;
+        } else if constexpr(std::is_arithmetic_v<T> || std::is_enum_v<T>) {
+            _ini.SetValue(a_section, a_key, std::to_string(a_value).c_str(), a_comment);
+            ++_savedSettings;
+        } else {
+            _ini.SetValue(a_section, a_key, a_value.c_str(), a_comment);
+            ++_savedSettings;
+        }
+    }
+
+    template<class T>
+    void load(T& a_value, const char* a_section, const char* a_key) {
+        if constexpr(std::is_same_v<bool, T>) {
+            a_value = _ini.GetBoolValue(a_section, a_key, a_value);
+            ++_loadedSettings;
+        } else if constexpr(std::is_floating_point_v<T>) {
+            a_value = static_cast<T>(_ini.GetDoubleValue(a_section, a_key, a_value));
+            ++_loadedSettings;
+        } else if constexpr(std::is_arithmetic_v<T> || std::is_enum_v<T>) {
+            a_value = lexical_cast<T>(_ini.GetValue(a_section, a_key, std::to_string(a_value).c_str()));
+            if constexpr(std::is_same<T, spdlog::level::level_enum>()) {
+                spdlog::set_level(a_value);
+                spdlog::flush_on(a_value);
+            }
+            ++_loadedSettings;
+        } else {
+            a_value = _ini.GetValue(a_section, a_key, a_value.c_str());
+            ++_loadedSettings;
+        }
+    }
+
+private:
     CSimpleIniA _ini;
     int         _loadedSettings{};
     int         _savedSettings{};
     const char* _settingsFile;
-
-public:
-    explicit settingsLoader(const char* settingsFile):
-        _settingsFile(settingsFile) {
-        _ini.LoadFile(settingsFile);
-        if(_ini.IsEmpty()) {
-            logger::info("Warning: {} is empty.", settingsFile);
-        }
-    };
-
-    ~    settingsLoader();
-    /*Load a boolean value if present.*/
-    void load(bool& settingRef, const char* key, const char* section = "UI", bool a_bDefault = false);
-    /*Load a float value if present.*/
-    void load(float& settingRef, const char* key, const char* section = "UI", float a_fDefault = 0.0F);
-    /*Load an unsigned int value if present.*/
-    void load(uint32_t& settingRef, const char* key, const char* section = "UI", uint32_t a_uDefault = 0);
-    void load(spdlog::level::level_enum& settingRef, const char* key, const char* section = "UI", spdlog::level::level_enum a_uDefault = spdlog::level::info);
-
-    void save(const bool& settingRef, const char* key, const char* section = "UI", const char* comment = nullptr);
-    void save(const float& settingRef, const char* key, const char* section = "UI", const char* comment = nullptr);
-    void save(const uint32_t& settingRef, const char* key, const char* section = "UI", const char* comment = nullptr);
-    void save(const spdlog::level::level_enum& loglevelRef, const char* key, const char* section = "Debug", const char* comment = nullptr);
-
-    void flush() const;
-
-    /*Load an integer value if present.*/
-    void load(int& settingRef, const char* key, const char* section = "UI");
-
-    void log();
 };
 
 namespace ImGui {
-    bool SliderFloatWithSteps(const char* label, float* v, float v_min, float v_max, float v_step);
+    bool SliderFloatWithSteps(const char* label, float& v, float v_min, float v_max, float v_step);
     void HoverNote(const char* text, const char* note = "(?)");
 
     bool ToggleButton(const char* str_id, bool* v);
 
-    bool InputTextRequired(const char* label, std::string* str, ImGuiInputTextFlags flags = 0);
-    bool InputTextWithPaste(const char* label, std::string& text, const ImVec2& size = ImVec2(0, 0), bool multiline = false, ImGuiInputTextFlags flags = 0);
-    bool InputTextWithPasteRequired(const char* label, std::string& text, const ImVec2& size = ImVec2(0, 0), bool multiline = false, ImGuiInputTextFlags flags = 0);
+    bool InputTextRequired(const char* label, std::string* str, ImGuiInputTextFlags flags = ImGuiInputTextFlags_None);
+    bool InputTextWithPaste(const char* label, std::string& text, const ImVec2& size = ImVec2(0, 0), bool multiline = false, ImGuiInputTextFlags flags = ImGuiInputTextFlags_None);
+    bool InputTextWithPasteRequired(const char* label, std::string& text, const ImVec2& size = ImVec2(0, 0), bool multiline = false, ImGuiInputTextFlags flags = ImGuiInputTextFlags_None);
 
 }  // namespace ImGui

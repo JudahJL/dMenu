@@ -12,19 +12,22 @@
 
 inline bool ModSettings::entry_base::Control::Req::satisfied() const {
     bool val{ false };
-    if(type == kReqType_Checkbox) {
-        const auto it = ModSettings::m_checkbox_toggle_.find(id);
-        if(it == ModSettings::m_checkbox_toggle_.end()) {
-            return val;
-        }
-        val = it->second->value;
-    } else if(type == kReqType_GameSetting) {
-        const auto gsc{ RE::GameSettingCollection::GetSingleton() };
-        const auto setting = gsc->GetSetting(id.c_str());
-        if(!setting) {
-            return val;
-        }
-        val = setting->GetBool();
+    switch(type) {
+        case kReqType_Checkbox: {
+            const auto it = ModSettings::m_checkbox_toggle_.find(id);
+            if(it == ModSettings::m_checkbox_toggle_.end()) {
+                return val;
+            }
+            val = it->second->value;
+        } break;
+        case kReqType_GameSetting: {
+            const auto gsc{ RE::GameSettingCollection::GetSingleton() };
+            const auto setting = gsc->GetSetting(id.c_str());
+            if(!setting) {
+                return val;
+            }
+            val = setting->GetBool();
+        } break;
     }
     return this->_not ? !val : val;
 }
@@ -195,7 +198,7 @@ void ModSettings::show_entry_edit(const std::shared_ptr<entry_base>& entry, cons
                     dropdown->options.emplace_back();
                     edited = true;
                 }
-                for(int i = 0; i < dropdown->options.size(); i++) {
+                for(int i{}; i < dropdown->options.size(); i++) {
                     ImGui::PushID(i);
                     if(ImGui::InputText("Option", &dropdown->options[i])) {
                         edited = true;
@@ -220,8 +223,8 @@ void ModSettings::show_entry_edit(const std::shared_ptr<entry_base>& entry, cons
             ImGui::Text("Text color");
             if(ImGui::BeginChild("##text_color", ImVec2(0, 100), true, ImGuiWindowFlags_AlwaysAutoResize)) {
                 const auto text = std::dynamic_pointer_cast<entry_text>(entry);
-                float      colorArray[4]{ text->_color.x, text->_color.y, text->_color.z, text->_color.w };
-                if(ImGui::ColorEdit4("Color", colorArray)) {
+                std::array colorArray{ text->_color.x, text->_color.y, text->_color.z, text->_color.w };
+                if(ImGui::ColorEdit4("Color", colorArray.data())) {
                     text->_color = ImVec4(colorArray[0], colorArray[1], colorArray[2], colorArray[3]);
                     edited       = true;
                 }
@@ -234,8 +237,8 @@ void ModSettings::show_entry_edit(const std::shared_ptr<entry_base>& entry, cons
             ImGui::Text("Color");
             if(ImGui::BeginChild("##color", ImVec2(0, 100), true, ImGuiWindowFlags_AlwaysAutoResize)) {
                 const auto color = std::dynamic_pointer_cast<setting_color>(entry);
-                float      colorArray[4]{ color->default_color.x, color->default_color.y, color->default_color.z, color->default_color.w };
-                if(ImGui::ColorEdit4("Default Color", colorArray)) {
+                std::array colorArray{ color->default_color.x, color->default_color.y, color->default_color.z, color->default_color.w };
+                if(ImGui::ColorEdit4("Default Color", colorArray.data())) {
                     color->default_color = ImVec4(colorArray[0], colorArray[1], colorArray[2], colorArray[3]);
                     edited               = true;
                 }
@@ -273,12 +276,15 @@ void ModSettings::show_entry_edit(const std::shared_ptr<entry_base>& entry, cons
     // choose fail action
     constexpr std::array fail_actions = { "Disable", "Hide" };
     if(ImGui::BeginCombo("Fail Action", fail_actions[std::to_underlying(entry->control.failAction)])) {
-        for(int i = 0; i < 2; i++) {
+        for(int i{}; i < fail_actions.size(); i++) {
             const bool is_selected = (std::to_underlying(entry->control.failAction) == i);
-            if(ImGui::Selectable(fail_actions[i], is_selected))
+
+            if(ImGui::Selectable(fail_actions[i], is_selected)) {
                 entry->control.failAction = static_cast<entry_base::Control::FailAction>(i);
-            if(is_selected)
+            }
+            if(is_selected) {
                 ImGui::SetItemDefaultFocus();
+            }
         }
         ImGui::EndCombo();
     }
@@ -293,7 +299,7 @@ void ModSettings::show_entry_edit(const std::shared_ptr<entry_base>& entry, cons
         for(size_t i{}; i < entry->control.reqs.size(); i++) {
             auto& req = entry->control.reqs[i];  // get a reference to the requirement at index i
             ImGui::PushID(&req);
-            constexpr int num_columns = 3;
+            constexpr int num_columns{ 3 };
             ImGui::Columns(num_columns, nullptr, false);
             // set the width of each column to be the same
             ImGui::SetColumnWidth(0, ImGui::GetWindowWidth() * 0.5f);
@@ -435,7 +441,7 @@ void ModSettings::show_entry(const std::shared_ptr<entry_base>& entry, const std
 
             // Set the width of the slider to a fraction of the available width
             ImGui::SetNextItemWidth(width);
-            if(ImGui::SliderFloatWithSteps(slider->name.get(), &slider->value, slider->min, slider->max, slider->step)) {
+            if(ImGui::SliderFloatWithSteps(slider->name.get(), slider->value, slider->min, slider->max, slider->step)) {
                 edited = true;
             }
 
@@ -491,20 +497,20 @@ void ModSettings::show_entry(const std::shared_ptr<entry_base>& entry, const std
             int         selected = dropdown->value;
 
             const std::vector<std::string>& options = dropdown->options;
-            std::vector<const char*>        cstrings;
-            for(const auto& option : options) {
-                cstrings.push_back(option.c_str());
-            }
-            auto preview_value{ "" };
+            // std::vector<const char*>        cstrings(options.size);
+            // for(const auto& option : options) {
+            //     cstrings.push_back(option.c_str());
+            // }
+            auto                            preview_value{ "" };
             if(selected >= 0 && selected < options.size()) {
-                preview_value = cstrings[selected];
+                preview_value = options[selected].c_str();
             }
             ImGui::SetNextItemWidth(width);
             if(ImGui::BeginCombo(name, preview_value)) {
                 for(int i = 0; i < options.size(); i++) {
                     const bool is_selected = (selected == i);
 
-                    if(ImGui::Selectable(cstrings[i], is_selected)) {
+                    if(ImGui::Selectable(options[i].c_str(), is_selected)) {
                         selected        = i;
                         dropdown->value = selected;
                         edited          = true;
@@ -581,8 +587,8 @@ void ModSettings::show_entry(const std::shared_ptr<entry_base>& entry, const std
             const auto c = std::dynamic_pointer_cast<setting_color>(entry);
             ImGui::SetNextItemWidth(width);
             const auto color = std::dynamic_pointer_cast<setting_color>(entry);
-            float      color_array[4]{ color->color.x, color->color.y, color->color.z, color->color.w };
-            if(ImGui::ColorEdit4(color->name.get(), color_array)) {
+            std::array color_array{ color->color.x, color->color.y, color->color.z, color->color.w };
+            if(ImGui::ColorEdit4(color->name.get(), color_array.data())) {
                 color->color = ImVec4(color_array[0], color_array[1], color_array[2], color_array[3]);
                 edited       = true;
             }
@@ -796,7 +802,7 @@ void ModSettings::show_entries(std::vector<std::shared_ptr<entry_base>>& entries
 
 inline void ModSettings::send_settings_update_event(const std::string_view modName) {
     const auto event_source{ SKSE::GetModCallbackEventSource() };
-    if(!event_source) {
+    if(!event_source) [[unlikely]] {
         return;
     }
     SKSE::ModCallbackEvent callback_event;
@@ -807,7 +813,7 @@ inline void ModSettings::send_settings_update_event(const std::string_view modNa
 
 void ModSettings::send_mod_callback_event(const std::string_view mod_name, const std::string_view str_arg) {
     const auto event_source{ SKSE::GetModCallbackEventSource() };
-    if(!event_source) {
+    if(!event_source) [[unlikely]] {
         return;
     }
     SKSE::ModCallbackEvent callback_event;
@@ -821,7 +827,7 @@ void ModSettings::show_mod_setting(const std::shared_ptr<mod_setting>& mod) {
 }
 
 void ModSettings::submit_input(const uint32_t id) {
-    if(!key_map_listening) {
+    if(!key_map_listening) [[unlikely]] {
         return;
     }
 
@@ -903,9 +909,9 @@ void ModSettings::init() {
 
 std::shared_ptr<ModSettings::entry_base> ModSettings::load_json_non_group(const nlohmann::json& json) {
     std::shared_ptr<ModSettings::entry_base> e;
-    auto                                     type_str         = json["type"].get<std::string>();
-    auto&                                    json_default_ref = json["default"];
-    auto&                                    json_style_ref   = json["style"];
+    auto                                     type_str         = json.contains("type") ? json["type"].get<std::string>() : "";
+    auto&                                    json_default_ref = json.contains("default") ? json["default"] : nullptr;
+    auto&                                    json_style_ref   = json.contains("style") ? json["style"] : nullptr;
     if(type_str == "checkbox"s) {
         auto scb           = std::make_shared<setting_checkbox>();
         scb->value         = json.contains("default") ? json_default_ref.get<bool>() : false;
@@ -960,7 +966,7 @@ std::shared_ptr<ModSettings::entry_base> ModSettings::load_json_non_group(const 
         auto sb = std::make_shared<entry_button>();
         sb->id  = json["id"].get<std::string>();
         e       = std::move(sb);
-    } else {
+    } else [[unlikely]] {
         logger::info("Unknown setting type: {}", type_str);
         return nullptr;
     }
@@ -982,9 +988,9 @@ std::shared_ptr<ModSettings::entry_base> ModSettings::load_json_non_group(const 
 std::shared_ptr<ModSettings::entry_group> ModSettings::load_json_group(const nlohmann::json& group_json) {
     auto group = std::make_shared<entry_group>();
     for(const auto& entry_json : group_json["entries"]) {
-        auto entry = load_json_entry(entry_json);
+        const auto entry = load_json_entry(entry_json);
         if(entry) {
-            group->entries.emplace_back(std::move(entry));
+            group->entries.emplace_back(entry);
         }
     }
     return group;
@@ -997,7 +1003,7 @@ std::shared_ptr<ModSettings::entry_base> ModSettings::load_json_entry(const nloh
     } else {
         entry = load_json_non_group(entry_json);
     }
-    if(!entry) {
+    if(!entry) [[unlikely]] {
         logger::error("Failed to load json entry.");
         return nullptr;
     }
@@ -1025,8 +1031,8 @@ std::shared_ptr<ModSettings::entry_base> ModSettings::load_json_entry(const nloh
         if(entry_json_control_ref.contains("requirements")) {
             for(const auto& req_json : entry_json_control_ref["requirements"]) {
                 entry_base::Control::Req req;
-                req.id        = req_json["id"].get<std::string>();
-                req._not      = !req_json["value"].get<bool>();
+                req.id              = req_json["id"].get<std::string>();
+                req._not            = !req_json["value"].get<bool>();
                 const auto req_type = req_json["type"].get<std::string>();
                 if(req_type == "checkbox") {
                     req.type = entry_base::Control::Req::ReqType::kReqType_Checkbox;
@@ -1055,7 +1061,7 @@ std::shared_ptr<ModSettings::entry_base> ModSettings::load_json_entry(const nloh
 void ModSettings::load_json(const std::filesystem::path& a_path) {
     std::string   mod_path{ a_path.string() };
     // Load the JSON file for this mod
-    std::ifstream json_file(mod_path);
+    std::ifstream json_file(a_path);
     if(!json_file.is_open()) {
         // Handle error opening file
         return;
@@ -1100,22 +1106,27 @@ void ModSettings::load_json(const std::filesystem::path& a_path) {
 
 void ModSettings::populate_non_group_json(const std::shared_ptr<entry_base>& entry, nlohmann::json& json) {
     if(!entry->is_setting()) {
-        if(entry->type == entry_type::kEntryType_Text) {
-            const auto& color          = std::dynamic_pointer_cast<entry_text>(entry)->_color;
-            auto& json_style_ref = json["style"]["color"];
-            json_style_ref["r"]  = color.x;
-            json_style_ref["g"]  = color.y;
-            json_style_ref["b"]  = color.z;
-            json_style_ref["a"]  = color.w;
-        } else if(entry->type == entry_type::kEntryType_Button) {
-            const auto button = std::dynamic_pointer_cast<entry_button>(entry);
-            json["id"]        = button->id;
+        switch(entry->type) {
+            case kEntryType_Text: {
+                const auto& color          = std::dynamic_pointer_cast<entry_text>(entry)->_color;
+                auto&       json_style_ref = json["style"]["color"];
+                json_style_ref["r"]        = color.x;
+                json_style_ref["g"]        = color.y;
+                json_style_ref["b"]        = color.z;
+                json_style_ref["a"]        = color.w;
+            } break;
+            case kEntryType_Button: {
+                const auto button = std::dynamic_pointer_cast<entry_button>(entry);
+                json["id"]        = button->id;
+            } break;
+            default:
+                break;
         }
         return;  // no need to continue, the following fields are only for settings
     }
 
-    const auto  setting          = std::dynamic_pointer_cast<setting_base>(entry);
-    auto& json_default_ref = json["Default"];
+    const auto setting          = std::dynamic_pointer_cast<setting_base>(entry);
+    auto&      json_default_ref = json["Default"];
     {
         auto& json_ini_ref{ json["ini"] };
         json_ini_ref["section"] = setting->ini_section;
@@ -1124,39 +1135,53 @@ void ModSettings::populate_non_group_json(const std::shared_ptr<entry_base>& ent
     if(!setting->gameSetting.empty()) {
         json["gameSetting"] = std::dynamic_pointer_cast<setting_base>(entry)->gameSetting;
     }
-    if(setting->type == entry_type::kEntryType_Checkbox) {
-        const auto cb_setting  = std::dynamic_pointer_cast<setting_checkbox>(entry);
-        json_default_ref = cb_setting->default_value;
-        if(!cb_setting->control_id.empty()) {
-            json["control"]["id"] = cb_setting->control_id;
-        }
-    } else if(setting->type == entry_type::kEntryType_Slider) {
-        const auto slider_setting    = std::dynamic_pointer_cast<setting_slider>(entry);
-        json_default_ref       = slider_setting->default_value;
-        auto& json_style_ref   = json["style"];
-        json_style_ref["min"]  = slider_setting->min;
-        json_style_ref["max"]  = slider_setting->max;
-        json_style_ref["step"] = slider_setting->step;
 
-    } else if(setting->type == entry_type::kEntryType_Textbox) {
-        const auto textbox_setting = std::dynamic_pointer_cast<setting_textbox>(entry);
-        json_default_ref     = textbox_setting->default_value;
+    switch(setting->type) {
+        case kEntryType_Checkbox: {
+            const auto cb_setting = std::dynamic_pointer_cast<setting_checkbox>(entry);
+            json_default_ref      = cb_setting->default_value;
+            if(!cb_setting->control_id.empty()) {
+                json["control"]["id"] = cb_setting->control_id;
+            }
+        } break;
 
-    } else if(setting->type == entry_type::kEntryType_Dropdown) {
-        const auto dropdown_setting = std::dynamic_pointer_cast<setting_dropdown>(entry);
-        json_default_ref      = dropdown_setting->default_value;
-        for(auto& option : dropdown_setting->options) {
-            json["options"].push_back(option);
-        }
-    } else if(setting->type == entry_type::kEntryType_Color) {
-        const auto& color_setting   = std::dynamic_pointer_cast<setting_color>(entry)->default_color;
-        json_default_ref["r"] = color_setting.x;
-        json_default_ref["g"] = color_setting.y;
-        json_default_ref["b"] = color_setting.z;
-        json_default_ref["a"] = color_setting.w;
-    } else if(setting->type == entry_type::kEntryType_Keymap) {
-        const auto keymap_setting = std::dynamic_pointer_cast<setting_keymap>(entry);
-        json_default_ref    = keymap_setting->default_value;
+        case kEntryType_Slider: {
+            const auto slider_setting = std::dynamic_pointer_cast<setting_slider>(entry);
+            json_default_ref          = slider_setting->default_value;
+            auto& json_style_ref      = json["style"];
+            json_style_ref["min"]     = slider_setting->min;
+            json_style_ref["max"]     = slider_setting->max;
+            json_style_ref["step"]    = slider_setting->step;
+        } break;
+
+        case kEntryType_Textbox: {
+            const auto textbox_setting = std::dynamic_pointer_cast<setting_textbox>(entry);
+            json_default_ref           = textbox_setting->default_value;
+        } break;
+
+        case kEntryType_Dropdown: {
+            const auto dropdown_setting = std::dynamic_pointer_cast<setting_dropdown>(entry);
+            json_default_ref            = dropdown_setting->default_value;
+            for(auto& option : dropdown_setting->options) {
+                json["options"].push_back(option);
+            }
+        } break;
+
+        case kEntryType_Color: {
+            const auto& color_setting = std::dynamic_pointer_cast<setting_color>(entry)->default_color;
+            json_default_ref["r"]     = color_setting.x;
+            json_default_ref["g"]     = color_setting.y;
+            json_default_ref["b"]     = color_setting.z;
+            json_default_ref["a"]     = color_setting.w;
+        } break;
+
+        case kEntryType_Keymap: {
+            const auto keymap_setting = std::dynamic_pointer_cast<setting_keymap>(entry);
+            json_default_ref          = keymap_setting->default_value;
+        } break;
+
+        default:
+            break;
     }
 }
 
@@ -1164,7 +1189,7 @@ void ModSettings::populate_group_json(const std::shared_ptr<entry_group>& group,
     for(const auto& entry : group->entries) {
         nlohmann::json entry_json;
         populate_entry_json(entry, entry_json);
-        group_json["entries"].push_back(entry_json);
+        group_json["entries"].emplace_back(std::move(entry_json));
     }
 }
 
@@ -1304,7 +1329,7 @@ void ModSettings::load_ini(const std::shared_ptr<mod_setting>& mod) {
     CSimpleIniA ini;
     ini.SetUnicode();
     SI_Error rc = ini.LoadFile(mod->ini_path.c_str());
-    if(rc != SI_OK) {
+    if(rc != SI_OK) [[unlikely]] {
         // Handle error loading file
         logger::info(".ini file for {} not found. Creating a new .ini file.", mod->name);
         flush_ini(mod);
@@ -1321,7 +1346,7 @@ void ModSettings::load_ini(const std::shared_ptr<mod_setting>& mod) {
         }
         // Get the value of this setting from the ini file
         std::string value{};
-        bool        use_default = false;
+        bool        use_default{ false };
         if(ini.KeyExists(setting_ptr->ini_section.c_str(), setting_ptr->ini_id.c_str())) {
             value = ini.GetValue(setting_ptr->ini_section.c_str(), setting_ptr->ini_id.c_str(), "");
         } else {
@@ -1352,9 +1377,9 @@ void ModSettings::load_ini(const std::shared_ptr<mod_setting>& mod) {
                 } break;
 
                 case kEntryType_Color: {
-                    const auto setting_color_ptr         = std::dynamic_pointer_cast<setting_color>(setting_ptr);
-                    auto&      setting_color_ref         = setting_color_ptr->color;
-                    const auto&      setting_default_color_ref = setting_color_ptr->default_color;
+                    const auto  setting_color_ptr         = std::dynamic_pointer_cast<setting_color>(setting_ptr);
+                    auto&       setting_color_ref         = setting_color_ptr->color;
+                    const auto& setting_default_color_ref = setting_color_ptr->default_color;
 
                     setting_color_ref.x = setting_default_color_ref.x;
                     setting_color_ref.y = setting_default_color_ref.y;
@@ -1393,11 +1418,11 @@ void ModSettings::load_ini(const std::shared_ptr<mod_setting>& mod) {
 
                     case kEntryType_Color: {
                         const uint32_t colUInt           = std::stoul(value);
-                        auto&    setting_color_ref = std::dynamic_pointer_cast<setting_color>(setting_ptr)->color;
-                        setting_color_ref.x        = ((colUInt >> IM_COL32_R_SHIFT) & 0xFF) / 255.0F;
-                        setting_color_ref.y        = ((colUInt >> IM_COL32_G_SHIFT) & 0xFF) / 255.0F;
-                        setting_color_ref.z        = ((colUInt >> IM_COL32_B_SHIFT) & 0xFF) / 255.0F;
-                        setting_color_ref.w        = ((colUInt >> IM_COL32_A_SHIFT) & 0xFF) / 255.0F;
+                        auto&          setting_color_ref = std::dynamic_pointer_cast<setting_color>(setting_ptr)->color;
+                        setting_color_ref.x              = ((colUInt >> IM_COL32_R_SHIFT) & 0xFF) / 255.0F;
+                        setting_color_ref.y              = ((colUInt >> IM_COL32_G_SHIFT) & 0xFF) / 255.0F;
+                        setting_color_ref.z              = ((colUInt >> IM_COL32_B_SHIFT) & 0xFF) / 255.0F;
+                        setting_color_ref.w              = ((colUInt >> IM_COL32_A_SHIFT) & 0xFF) / 255.0F;
                     } break;
 
                     case kEntryType_Keymap: {
@@ -1453,8 +1478,8 @@ void ModSettings::flush_ini(const std::shared_ptr<mod_setting>& mod) {
                 // from imvec4 float to imu32
                 const auto& sc  = std::dynamic_pointer_cast<setting_color>(setting)->color;
                 // Step 1: Extract components
-                ImU32 col = IM_COL32(sc.x * 255.0F, sc.y * 255.0F, sc.z * 255.0F, sc.w * 255.0F);
-                value     = std::to_string(col);
+                ImU32       col = IM_COL32(sc.x * 255.0F, sc.y * 255.0F, sc.z * 255.0F, sc.w * 255.0F);
+                value           = std::to_string(col);
             } break;
 
             case kEntryType_Keymap: {
@@ -1477,7 +1502,7 @@ void ModSettings::flush_game_setting(const std::shared_ptr<mod_setting>& mod) {
     std::vector<std::shared_ptr<ModSettings::setting_base>> settings;
     get_all_settings(mod, settings);
     const auto gsc{ RE::GameSettingCollection::GetSingleton() };
-    if(!gsc) {
+    if(!gsc) [[unlikely]] {
         logger::info("Game setting collection not found when trying to save game setting.");
         return;
     }
@@ -1486,7 +1511,7 @@ void ModSettings::flush_game_setting(const std::shared_ptr<mod_setting>& mod) {
             continue;
         }
         RE::Setting* s = gsc->GetSetting(setting->gameSetting.c_str());
-        if(!s) {
+        if(!s) [[unlikely]] {
             logger::info("Error: Game setting not found when trying to save game setting {} for setting {}", setting->gameSetting, setting->name.def);
             return;
         }
@@ -1537,7 +1562,7 @@ void ModSettings::insert_game_setting(const std::shared_ptr<mod_setting>& mod) {
     std::vector<std::shared_ptr<ModSettings::entry_base>> entries;
     get_all_entries(mod, entries);  // must get all entries to inject settings for the entry's control requirements
     const auto gsc{ RE::GameSettingCollection::GetSingleton() };
-    if(!gsc) {
+    if(!gsc) [[unlikely]] {
         logger::info("Game setting collection not found when trying to insert game setting.");
         return;
     }

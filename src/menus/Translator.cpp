@@ -11,7 +11,7 @@ const char* Translator::Translate(const std::string& id) {
     std::string res;
     SKSE::Translation::Translate(id, res);
     const bool hasTranslation = !res.empty();
-    _translations[id]   = { hasTranslation, res };
+    _translations[id]         = { hasTranslation, res };
     return hasTranslation ? _translations[id].second.c_str() : nullptr;
 }
 
