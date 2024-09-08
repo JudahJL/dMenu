@@ -5,7 +5,7 @@ message("Using toolchain file ${CMAKE_TOOLCHAIN_FILE}.")
 ########################################################################################################################
 project(
 	dmenu
-	VERSION 1.0.0.0
+	VERSION 1.1.0.0
 	DESCRIPTION ""
 	LANGUAGES CXX
 )
@@ -152,6 +152,21 @@ install(TARGETS ${PROJECT_NAME}
 ## Automatic plugin deployment
 ########################################################################################################################
 # Automatic deployment to Mod Organizer 2 mod directory.
+set(DISTRIBUTION_DIR "${CMAKE_CURRENT_SOURCE_DIR}/contrib/Distribution/")
+set(CONTRIB_PROJECT_DIR "${DISTRIBUTION_DIR}/Plugin - ${CMAKE_BUILD_TYPE}/")
+set(CONTRIB_CONFIGURATION_GLOBAL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Configuration/Global/")
+set(CONTRIB_CONFIGURATION_MY_CONFIG_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Configuration/My Config/")
+set(CONTRIB_COMMON_DIR "${DISTRIBUTION_DIR}/Common/")
+
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E make_directory "${CONTRIB_PROJECT_DIR}"
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:${PROJECT_NAME}> "${CONTRIB_PROJECT_DIR}")
+
+if(${CMAKE_BUILD_TYPE} STREQUAL "Debug" OR ${CMAKE_BUILD_TYPE} STREQUAL "RelWithDebInfo")
+	add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+			COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_PDB_FILE:${PROJECT_NAME}> "${CONTRIB_PROJECT_DIR}")
+endif()
+
 foreach(DEPLOY_TARGET $ENV{SkyrimPluginTargets})
 	set(DEPLOY_TARGET_COMMON_DIR "${DEPLOY_TARGET}/${PROJECT_NAME} - ${CMAKE_BUILD_TYPE}/SKSE/Plugins/")
 	message("Adding deployment target ${DEPLOY_TARGET}.")
@@ -165,3 +180,7 @@ foreach(DEPLOY_TARGET $ENV{SkyrimPluginTargets})
 				COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_PDB_FILE:${PROJECT_NAME}>" "${DEPLOY_TARGET_COMMON_DIR}")
 	endif()
 endforeach()
+
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/skse-fomod.cmake)
+
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/compress-artifact.cmake)

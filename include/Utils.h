@@ -187,14 +187,26 @@ public:
             ++_loadedSettings;
         } else if constexpr(std::is_arithmetic_v<T> || std::is_enum_v<T>) {
             a_value = lexical_cast<T>(_ini.GetValue(a_section, a_key, std::to_string(a_value).c_str()));
-            if constexpr(std::is_same<T, spdlog::level::level_enum>()) {
-                spdlog::set_level(a_value);
-                spdlog::flush_on(a_value);
-            }
             ++_loadedSettings;
         } else {
             a_value = _ini.GetValue(a_section, a_key, a_value.c_str());
             ++_loadedSettings;
+        }
+        if constexpr(std::is_same<T, std::string>()) {
+            static constexpr std::array log_levels{
+                "trace",
+                "debug",
+                "info",
+                "warning",
+                "error",
+                "critical",
+                "off"
+            };
+            if(std::find(log_levels.begin(), log_levels.end(), a_value) != log_levels.end()) {
+                auto log{ spdlog::level::from_str(a_value) };
+                spdlog::set_level(log);
+                spdlog::flush_on(log);
+            }
         }
     }
 
