@@ -20,17 +20,17 @@ void message_handler(SKSE::MessagingInterface::Message* a_msg) {
 inline void on_skse_init() {
     Renderer::Install();
     Settings::init();
-    ModSettings::init();  // init modsetting before everyone else
+    ModSettings::init();  // init mod settings before everyone else
 }
 
 namespace {
     void initialize_log(const SKSE::PluginDeclaration* plugin = SKSE::PluginDeclaration::GetSingleton()) {
-        auto           log = std::make_shared<spdlog::logger>(plugin->GetName().data());
-        auto& sink = log->sinks();
+        auto  log{ std::make_shared<spdlog::logger>(plugin->GetName().data()) };
+        auto& sink{ log->sinks() };
         if(REX::W32::IsDebuggerPresent()) [[unlikely]] {
             sink.emplace_back(std::make_shared<spdlog::sinks::msvc_sink_mt>());
         } else [[likely]] {
-            auto path = logger::log_directory();
+            auto path{ logger::log_directory() };
             if(!path) {
                 util::report_and_fail("Failed to find standard logging directory");
             }
@@ -44,14 +44,6 @@ namespace {
         spdlog::set_default_logger(std::move(log));
     }
 }  // namespace
-
-std::string wstring_to_string(const std::wstring& wstr, UINT CodePage) {
-    std::string ret;
-    const int   len = WideCharToMultiByte(CodePage, 0, wstr.c_str(), static_cast<int>(wstr.size()), nullptr, 0, nullptr, nullptr);
-    ret.resize(len, 0);
-    WideCharToMultiByte(CodePage, 0, wstr.c_str(), static_cast<int>(wstr.size()), &ret[0], len, nullptr, nullptr);
-    return ret;
-}
 
 SKSEPluginLoad(const SKSE::LoadInterface* a_skse) {
     // while(IsDebuggerPresent() == 0) {
@@ -67,8 +59,7 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse) {
 
     SKSE::Init(a_skse);
 
-    const auto messaging{ SKSE::GetMessagingInterface() };
-    if(!messaging->RegisterListener("SKSE", message_handler)) [[unlikely]] {
+    if(const auto messaging{ SKSE::GetMessagingInterface() }; !messaging->RegisterListener("SKSE", message_handler)) [[unlikely]] {
         util::report_and_fail("failed to register messaging interface");
     }
 

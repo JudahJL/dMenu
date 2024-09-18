@@ -1,9 +1,9 @@
 // #include <imgui_impl_dx11.h>
 // #include <imgui_impl_win32.h>
-#include "imgui_internal.h"
-#include "imgui_stdlib.h"
+#include <imgui_internal.h>
+#include <imgui_stdlib.h>
 
-#include "imgui.h"
+#include <imgui.h>
 #include "Utils.h"
 
 namespace Utils {
@@ -51,8 +51,8 @@ namespace Utils {
             case RE::FormType::SoundRecord:
                 return a_form->GetFormEditorID();
             default: {
-                static auto tweaks = GetModuleHandle(L"po3_Tweaks");
-                static auto func   = reinterpret_cast<func_get_form_editor_id>(GetProcAddress(tweaks, "GetFormEditorID"));
+                static auto tweaks{ GetModuleHandle(L"po3_Tweaks") };
+                static auto func{ reinterpret_cast<func_get_form_editor_id>(GetProcAddress(tweaks, "GetFormEditorID")) };
                 if(func) {
                     return func(a_form->formID);
                 }
@@ -68,9 +68,9 @@ namespace ImGui {
         ImFormatString(text_buf, std::size(text_buf), "%g", v);
 
         // Map from [v_min,v_max] to [0,N]
-        const int  countValues   = static_cast<int>((v_max - v_min) / v_step);
-        int        v_i           = static_cast<int>((v - v_min) / v_step);
-        const bool value_changed = SliderInt(label, &v_i, 0, countValues, text_buf);
+        const int  countValues{ static_cast<int>((v_max - v_min) / v_step) };
+        int        v_i{ static_cast<int>((v - v_min) / v_step) };
+        const bool value_changed{ SliderInt(label, &v_i, 0, countValues, text_buf) };
 
         // Remap from [0,N] to [v_min,v_max]
         v = v_min + static_cast<float>(v_i) * v_step;
@@ -112,9 +112,9 @@ namespace ImGui {
             t = *v ? (t_anim) : (1.0F - t_anim);
         }
 
-        const ImU32 col_bg = ImGui::IsItemHovered() ?
-                           ImGui::GetColorU32(ImLerp(ImVec4(0.78F, 0.78F, 0.78F, 1.0F), ImVec4(0.64F, 0.83F, 0.34F, 1.0F), t)) :
-                           ImGui::GetColorU32(ImLerp(ImVec4(0.85F, 0.85F, 0.85F, 1.0F), ImVec4(0.56F, 0.83F, 0.26F, 1.0F), t));
+        const ImU32 col_bg{ ImGui::IsItemHovered() ?
+                                ImGui::GetColorU32(ImLerp(ImVec4(0.78F, 0.78F, 0.78F, 1.0F), ImVec4(0.64F, 0.83F, 0.34F, 1.0F), t)) :
+                                ImGui::GetColorU32(ImLerp(ImVec4(0.85F, 0.85F, 0.85F, 1.0F), ImVec4(0.56F, 0.83F, 0.26F, 1.0F), t)) };
 
         draw_list->AddRectFilled(p, ImVec2(p.x + width, p.y + height), col_bg, height * 0.5F);
         draw_list->AddCircleFilled(ImVec2(p.x + radius + t * (width - radius * 2.0F), p.y + radius), radius - 1.5F, IM_COL32(255, 255, 255, 255));
@@ -123,13 +123,13 @@ namespace ImGui {
     }
 
     bool InputTextRequired(const char* label, std::string* str, ImGuiInputTextFlags flags) {
-        const bool empty = str->empty();
+        const bool empty{ str->empty() };
         if(empty) {
             ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(1.0F, 0.0F, 0.0F, 0.2F));
             ImGui::PushStyleColor(ImGuiCol_FrameBgActive, ImVec4(1.0F, 0.0F, 0.0F, 0.2F));
             ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(1.0F, 0.0F, 0.0F, 0.2F));
         }
-        const bool ret = ImGui::InputText(label, str, flags);
+        const bool ret{ ImGui::InputText(label, str, flags) };
         if(empty) {
             ImGui::PopStyleColor(3);
         }
@@ -152,9 +152,9 @@ namespace ImGui {
         flags |= ImGuiInputTextFlags_CallbackResize;
 
         // Call the InputTextWithCallback function with the std::string buffer and callback function
-        const bool result{ (multiline) ?
-                                ImGui::InputTextMultiline(label, &text[0], text.capacity() + 1, size, flags, InputTextCallback, &text) :
-                                ImGui::InputText(label, &text[0], text.capacity() + 1, flags, InputTextCallback, &text) };
+        const bool result{ multiline ?
+                               ImGui::InputTextMultiline(label, &text[0], text.capacity() + 1, size, flags, InputTextCallback, &text) :
+                               ImGui::InputText(label, &text[0], text.capacity() + 1, flags, InputTextCallback, &text) };
 
         // Check if the InputText is hovered and the right mouse button is clicked
         if(ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
@@ -166,14 +166,14 @@ namespace ImGui {
         if(ImGui::BeginPopup("InputTextContextMenu")) {
             if(ImGui::MenuItem("Copy")) {
                 // Copy the selected text to the clipboard
-                if(const char* selected_text = text.c_str(); selected_text) {
+                if(const char* selected_text{ text.c_str() }; selected_text) {
                     ImGui::SetClipboardText(selected_text);
                 }
             }
             if(ImGui::MenuItem("Paste")) {
                 // Read the clipboard content
 
-                if(const char* clipboard = ImGui::GetClipboardText(); clipboard) {
+                if(const char* clipboard{ ImGui::GetClipboardText() }; clipboard) {
                     // Insert the clipboard content into the text buffer
                     text.append(clipboard);
                 }
@@ -190,15 +190,15 @@ namespace ImGui {
         flags |= ImGuiInputTextFlags_CallbackResize;
 
         // Call the InputTextWithCallback function with the std::string buffer and callback function
-        bool empty{ text.empty() };
+        const bool empty{ text.empty() };
         if(empty) {
             ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(1.0F, 0.0F, 0.0F, 0.2F));
             ImGui::PushStyleColor(ImGuiCol_FrameBgActive, ImVec4(1.0F, 0.0F, 0.0F, 0.2F));
             ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(1.0F, 0.0F, 0.0F, 0.2F));
         }
         const bool result{ multiline ?
-            ImGui::InputTextMultiline(label, &text[0], text.capacity() + 1, size, flags, InputTextCallback, &text) :
-            ImGui::InputText(label, &text[0], text.capacity() + 1, flags, InputTextCallback, &text) };
+                               ImGui::InputTextMultiline(label, &text[0], text.capacity() + 1, size, flags, InputTextCallback, &text) :
+                               ImGui::InputText(label, &text[0], text.capacity() + 1, flags, InputTextCallback, &text) };
 
         if(empty) {
             ImGui::PopStyleColor(3);
@@ -214,14 +214,14 @@ namespace ImGui {
         if(ImGui::BeginPopup("InputTextContextMenu")) {
             if(ImGui::MenuItem("Copy")) {
                 // Copy the selected text to the clipboard
-                if(const char* selected_text = text.c_str(); selected_text) {
+                if(const char* selected_text{ text.c_str() }; selected_text) {
                     ImGui::SetClipboardText(selected_text);
                 }
             }
             if(ImGui::MenuItem("Paste")) {
                 // Read the clipboard content
 
-                if(const char* clipboard = ImGui::GetClipboardText(); clipboard) {
+                if(const char* clipboard{ ImGui::GetClipboardText() }; clipboard) {
                     // Insert the clipboard content into the text buffer
                     text.append(clipboard);
                 }
@@ -246,7 +246,7 @@ settingsLoader::settingsLoader(const char* settingsFile):
 settingsLoader::~settingsLoader() {
     if(_savedSettings > 0) [[likely]] {
         // Save the INI file and check the result
-        const auto result = _ini.SaveFile(_settingsFile);
+        const auto result{ _ini.SaveFile(_settingsFile) };
 
         if(result == SI_FAIL) [[unlikely]] {
             logger::error("Failed to save settings file: {}", _settingsFile);

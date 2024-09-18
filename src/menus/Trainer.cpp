@@ -156,7 +156,7 @@ namespace World {
             // Display filtering controls
             ImGui::Text("Flags:");
 
-            for(int i = 0; i < _filters.size(); i++) {
+            for(size_t i{}; i < _filters.size(); i++) {
                 if(ImGui::Checkbox(_filters[i].first, &_filters[i].second)) {
                     _cached = false;
                 }

@@ -3,7 +3,7 @@
 #include <imgui_impl_dx11.h>
 #include <imgui_impl_win32.h>
 
-#include "imgui_internal.h"
+#include <imgui_internal.h>
 #include <dxgi.h>
 
 #include "dMenu.h"
@@ -20,14 +20,14 @@ namespace stl {
 
     template<class T>
     void write_thunk_call() {
-        auto&                                 trampoline = SKSE::GetTrampoline();
+        auto&                                 trampoline{ SKSE::GetTrampoline() };
         const REL::Relocation<std::uintptr_t> hook{ T::id, T::offset };
         T::func = trampoline.write_call<5>(hook.address(), T::thunk);
     }
 }  // namespace stl
 
 LRESULT Renderer::WndProcHook::thunk(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-    auto& io = ImGui::GetIO();
+    auto& io{ ImGui::GetIO() };
     if(uMsg == WM_KILLFOCUS) {
         io.ClearInputCharacters();
         io.ClearInputKeys();
@@ -37,8 +37,8 @@ LRESULT Renderer::WndProcHook::thunk(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 }
 
 void SetupImGuiStyle() {
-    auto& style  = ImGui::GetStyle();
-    auto& colors = style.Colors;
+    auto& style{ ImGui::GetStyle() };
+    auto& colors{ style.Colors };
 
     // Theme from https://github.com/ArranzCNL/ImprovedCameraSE-NG
 
@@ -91,24 +91,24 @@ void Renderer::D3DInitHook::thunk() {
         return;
     }
 
-    const auto swapChain = reinterpret_cast<IDXGISwapChain*>(renderer->data.renderWindows[0].swapChain);
+    const auto swapChain{ renderer->data.renderWindows[0].swapChain };
     if(!swapChain) [[unlikely]] {
         SKSE::log::error("couldn't find swapChain");
         return;
     }
 
-    DXGI_SWAP_CHAIN_DESC desc{};
+    REX::W32::DXGI_SWAP_CHAIN_DESC desc{};
     if(FAILED(swapChain->GetDesc(std::addressof(desc)))) [[unlikely]] {
         SKSE::log::error("IDXGISwapChain::GetDesc failed.");
         return;
     }
-    const auto id_3d_11device         = reinterpret_cast<ID3D11Device*>(renderer->data.forwarder);
-    const auto id_3d_11device_context = reinterpret_cast<ID3D11DeviceContext*>(renderer->data.context);
+    const auto id_3d_11device{ reinterpret_cast<ID3D11Device*>(renderer->data.forwarder) };
+    const auto id_3d_11device_context{ reinterpret_cast<ID3D11DeviceContext*>(renderer->data.context) };
 
     SKSE::log::info("Initializing ImGui...");
 
     ImGui::CreateContext();
-    if(!ImGui_ImplWin32_Init(desc.OutputWindow)) [[unlikely]] {
+    if(!ImGui_ImplWin32_Init(desc.outputWindow)) [[unlikely]] {
         SKSE::log::error("ImGui initialization failed (Win32)");
         return;
     }
@@ -123,7 +123,7 @@ void Renderer::D3DInitHook::thunk() {
     initialized.store(true);
 
     WndProcHook::func = reinterpret_cast<WNDPROC>(
-        SetWindowLongPtrA(desc.OutputWindow, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(WndProcHook::thunk)));
+        REX::W32::SetWindowLongPtrA(desc.outputWindow, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(WndProcHook::thunk)));
     if(!WndProcHook::func) [[unlikely]] {
         SKSE::log::error("SetWindowLongPtrA failed!");
     }
@@ -131,17 +131,17 @@ void Renderer::D3DInitHook::thunk() {
     // initialize font selection here
     logger::info("Building font atlas...");
     std::filesystem::path fontPath;
-    bool                  foundCustomFont = false;
-    const ImWchar*        glyphRanges     = nullptr;
+    bool                  foundCustomFont{ false };
+    const ImWchar*        glyphRanges{ nullptr };
     constexpr auto        FONT_SETTING_PATH{ R"(Data\SKSE\Plugins\dMenu\fonts\FontConfig.ini)" };
     CSimpleIniA           ini;
     ini.LoadFile(FONT_SETTING_PATH);
     if(!ini.IsEmpty()) [[likely]] {
         if(const char* language = ini.GetValue("config", "font", nullptr); language) {
             // check if folder exists
-            if(const std::string fontDir = R"(Data\SKSE\Plugins\dMenu\fonts\)"s + language; std::filesystem::exists(fontDir) && std::filesystem::is_directory(fontDir)) {
+            if(const std::string fontDir{ std::format(R"(Data\SKSE\Plugins\dMenu\fonts\{})", language) }; std::filesystem::exists(fontDir) && std::filesystem::is_directory(fontDir)) {
                 for(const auto& entry : std::filesystem::directory_iterator(fontDir)) {
-                    const auto& entryPath = entry.path();
+                    const auto& entryPath{ entry.path() };
                     if(entryPath.extension() == ".ttf" || entryPath.extension() == ".ttc") {
                         fontPath        = entryPath;
                         foundCustomFont = true;
@@ -150,24 +150,23 @@ void Renderer::D3DInitHook::thunk() {
                 }
             }
             if(foundCustomFont) {
-                const std::string languageStr{ language };
                 logger::info("Loading font: {}", fontPath.string().c_str());
-                if(languageStr == "Chinese") {
+                if(language == "Chinese"sv) {
                     logger::info("Glyph range set to Chinese");
                     glyphRanges = ImGui::GetIO().Fonts->GetGlyphRangesChineseFull();
-                } else if(languageStr == "Korean") {
+                } else if(language == "Korean"sv) {
                     logger::info("Glyph range set to Korean");
                     glyphRanges = ImGui::GetIO().Fonts->GetGlyphRangesKorean();
-                } else if(languageStr == "Japanese") {
+                } else if(language == "Japanese"sv) {
                     logger::info("Glyph range set to Japanese");
                     glyphRanges = ImGui::GetIO().Fonts->GetGlyphRangesJapanese();
-                } else if(languageStr == "Thai") {
+                } else if(language == "Thai"sv) {
                     logger::info("Glyph range set to Thai");
                     glyphRanges = ImGui::GetIO().Fonts->GetGlyphRangesThai();
-                } else if(languageStr == "Vietnamese") {
+                } else if(language == "Vietnamese"sv) {
                     logger::info("Glyph range set to Vietnamese");
                     glyphRanges = ImGui::GetIO().Fonts->GetGlyphRangesVietnamese();
-                } else if(languageStr == "Cyrillic") {
+                } else if(language == "Cyrillic"sv) {
                     glyphRanges = ImGui::GetIO().Fonts->GetGlyphRangesCyrillic();
                     logger::info("Glyph range set to Cyrillic");
                 }

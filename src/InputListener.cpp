@@ -331,151 +331,158 @@ static std::uint32_t GetGamepadIndex(const RE::BSWin32GamepadDevice::Key a_key) 
 }
 
 void InputListener::ProcessEvent(RE::InputEvent** a_event) {
-    if(!a_event)
+    if(!a_event) {
         return;
+    }
 
-    auto& io = ImGui::GetIO();
+    auto& io{ ImGui::GetIO() };
 
-    for(auto event = *a_event; event; event = event->next) {
-        if(event->eventType == RE::INPUT_EVENT_TYPE::kChar) {
-            io.AddInputCharacter(event->AsCharEvent()->keycode);
-        } else if(event->eventType == RE::INPUT_EVENT_TYPE::kButton) {
-            const auto* button = event->AsButtonEvent();
-            if(!button || (button->IsPressed() && !button->IsDown()))
-                continue;
-
-            auto scan_code = button->GetIDCode();
-
-            using DeviceType = RE::INPUT_DEVICE;
-            auto input       = scan_code;
-            switch(button->device.get()) {
-                case DeviceType::kMouse:
-                    input += kMouseOffset;
-                    break;
-                case DeviceType::kKeyboard:
-                    input += kKeyboardOffset;
-                    break;
-                case DeviceType::kGamepad:
-                    input = GetGamepadIndex(static_cast<RE::BSWin32GamepadDevice::Key>(input));
-                    break;
-                default:
+    for(const auto* event{ *a_event }; event; event = event->next) {
+        switch(event->eventType.get()) {
+            case RE::INPUT_EVENT_TYPE::kChar:
+                io.AddInputCharacter(event->AsCharEvent()->keycode);
+                break;
+            case RE::INPUT_EVENT_TYPE::kButton: {
+                const auto* button{ event->AsButtonEvent() };
+                if(!button || (button->IsPressed() && !button->IsDown())) {
                     continue;
-            }
-            ModSettings::submit_input(input);
+                }
 
-            uint32_t key = MapVirtualKeyEx(scan_code, MAPVK_VSC_TO_VK_EX, GetKeyboardLayout(0));
-            switch(scan_code) {
-                case DIK_LEFTARROW:
-                    key = VK_LEFT;
-                    break;
-                case DIK_RIGHTARROW:
-                    key = VK_RIGHT;
-                    break;
-                case DIK_UPARROW:
-                    key = VK_UP;
-                    break;
-                case DIK_DOWNARROW:
-                    key = VK_DOWN;
-                    break;
-                case DIK_DELETE:
-                    key = VK_DELETE;
-                    break;
-                case DIK_END:
-                    key = VK_END;
-                    break;
-                case DIK_HOME:
-                    key = VK_HOME;
-                    break;  // pos1
-                case DIK_PRIOR:
-                    key = VK_PRIOR;
-                    break;  // page up
-                case DIK_NEXT:
-                    key = VK_NEXT;
-                    break;  // page down
-                case DIK_INSERT:
-                    key = VK_INSERT;
-                    break;
-                case DIK_NUMPAD0:
-                    key = VK_NUMPAD0;
-                    break;
-                case DIK_NUMPAD1:
-                    key = VK_NUMPAD1;
-                    break;
-                case DIK_NUMPAD2:
-                    key = VK_NUMPAD2;
-                    break;
-                case DIK_NUMPAD3:
-                    key = VK_NUMPAD3;
-                    break;
-                case DIK_NUMPAD4:
-                    key = VK_NUMPAD4;
-                    break;
-                case DIK_NUMPAD5:
-                    key = VK_NUMPAD5;
-                    break;
-                case DIK_NUMPAD6:
-                    key = VK_NUMPAD6;
-                    break;
-                case DIK_NUMPAD7:
-                    key = VK_NUMPAD7;
-                    break;
-                case DIK_NUMPAD8:
-                    key = VK_NUMPAD8;
-                    break;
-                case DIK_NUMPAD9:
-                    key = VK_NUMPAD9;
-                    break;
-                case DIK_DECIMAL:
-                    key = VK_DECIMAL;
-                    break;
-                case DIK_NUMPADENTER:
-                    key = IM_VK_KEYPAD_ENTER;
-                    break;
-                case DIK_RMENU:
-                    key = VK_RMENU;
-                    break;  // right alt
-                case DIK_RCONTROL:
-                    key = VK_RCONTROL;
-                    break;  // right control
-                case DIK_LWIN:
-                    key = VK_LWIN;
-                    break;  // left win
-                case DIK_RWIN:
-                    key = VK_RWIN;
-                    break;  // right win
-                case DIK_APPS:
-                    key = VK_APPS;
-                    break;
-                default:
-                    break;
-            }
+                auto scan_code{ button->GetIDCode() };
 
-            switch(button->device.get()) {
-                case RE::INPUT_DEVICE::kMouse:
-                    if(scan_code > 7)  // middle scroll
-                        io.AddMouseWheelEvent(0, button->Value() * (scan_code == 8 ? 1.0F : -1.0F));
-                    else {
-                        if(scan_code > 5)
-                            scan_code = 5;
-                        io.AddMouseButtonEvent(scan_code, button->IsPressed());
-                    }
-                    break;
-                case RE::INPUT_DEVICE::kKeyboard:
-                    io.AddKeyEvent(ImGui_ImplWin32_VirtualKeyToImGuiKey(key), button->IsPressed());
-                    if(button->GetIDCode() == Settings::key_toggle_dmenu) {  // home
-                        if(button->IsDown()) {
-                            Renderer::flip();
+                using DeviceType = RE::INPUT_DEVICE;
+                auto input{ scan_code };
+                switch(button->device.get()) {
+                    case DeviceType::kMouse:
+                        input += kMouseOffset;
+                        break;
+                    case DeviceType::kKeyboard:
+                        input += kKeyboardOffset;
+                        break;
+                    case DeviceType::kGamepad:
+                        input = GetGamepadIndex(static_cast<RE::BSWin32GamepadDevice::Key>(input));
+                        break;
+                    default:
+                        continue;
+                }
+                ModSettings::submit_input(input);
+
+                uint32_t key{ MapVirtualKeyEx(scan_code, MAPVK_VSC_TO_VK_EX, GetKeyboardLayout(0)) };
+                switch(scan_code) {
+                    case DIK_LEFTARROW:
+                        key = VK_LEFT;
+                        break;
+                    case DIK_RIGHTARROW:
+                        key = VK_RIGHT;
+                        break;
+                    case DIK_UPARROW:
+                        key = VK_UP;
+                        break;
+                    case DIK_DOWNARROW:
+                        key = VK_DOWN;
+                        break;
+                    case DIK_DELETE:
+                        key = VK_DELETE;
+                        break;
+                    case DIK_END:
+                        key = VK_END;
+                        break;
+                    case DIK_HOME:
+                        key = VK_HOME;
+                        break;  // pos1
+                    case DIK_PRIOR:
+                        key = VK_PRIOR;
+                        break;  // page up
+                    case DIK_NEXT:
+                        key = VK_NEXT;
+                        break;  // page down
+                    case DIK_INSERT:
+                        key = VK_INSERT;
+                        break;
+                    case DIK_NUMPAD0:
+                        key = VK_NUMPAD0;
+                        break;
+                    case DIK_NUMPAD1:
+                        key = VK_NUMPAD1;
+                        break;
+                    case DIK_NUMPAD2:
+                        key = VK_NUMPAD2;
+                        break;
+                    case DIK_NUMPAD3:
+                        key = VK_NUMPAD3;
+                        break;
+                    case DIK_NUMPAD4:
+                        key = VK_NUMPAD4;
+                        break;
+                    case DIK_NUMPAD5:
+                        key = VK_NUMPAD5;
+                        break;
+                    case DIK_NUMPAD6:
+                        key = VK_NUMPAD6;
+                        break;
+                    case DIK_NUMPAD7:
+                        key = VK_NUMPAD7;
+                        break;
+                    case DIK_NUMPAD8:
+                        key = VK_NUMPAD8;
+                        break;
+                    case DIK_NUMPAD9:
+                        key = VK_NUMPAD9;
+                        break;
+                    case DIK_DECIMAL:
+                        key = VK_DECIMAL;
+                        break;
+                    case DIK_NUMPADENTER:
+                        key = IM_VK_KEYPAD_ENTER;
+                        break;
+                    case DIK_RMENU:
+                        key = VK_RMENU;
+                        break;  // right alt
+                    case DIK_RCONTROL:
+                        key = VK_RCONTROL;
+                        break;  // right control
+                    case DIK_LWIN:
+                        key = VK_LWIN;
+                        break;  // left win
+                    case DIK_RWIN:
+                        key = VK_RWIN;
+                        break;  // right win
+                    case DIK_APPS:
+                        key = VK_APPS;
+                        break;
+                    default:
+                        break;
+                }
+
+                switch(button->device.get()) {
+                    case RE::INPUT_DEVICE::kMouse:
+                        if(scan_code > 7)  // middle scroll
+                            io.AddMouseWheelEvent(0, button->Value() * (scan_code == 8 ? 1.0F : -1.0F));
+                        else {
+                            if(scan_code > 5) {
+                                scan_code = 5;
+                            }
+                            io.AddMouseButtonEvent(static_cast<int>(scan_code), button->IsPressed());
                         }
-                    }
-                    break;
-                case RE::INPUT_DEVICE::kGamepad:
-                    // not implemented yet
-                    // key = GetGamepadIndex((RE::BSWin32GamepadDevice::Key)key);
-                    break;
-                default:
-                    continue;
-            }
+                        break;
+                    case RE::INPUT_DEVICE::kKeyboard:
+                        io.AddKeyEvent(ImGui_ImplWin32_VirtualKeyToImGuiKey(key), button->IsPressed());
+                        if(button->GetIDCode() == Settings::key_toggle_dmenu) {  // home
+                            if(button->IsDown()) {
+                                Renderer::flip();
+                            }
+                        }
+                        break;
+                    // case RE::INPUT_DEVICE::kGamepad:
+                    //     // not implemented yet
+                    //     // key = GetGamepadIndex((RE::BSWin32GamepadDevice::Key)key);
+                    //     break;
+                    default:
+                        break;
+                }
+            } break;
+            default:
+                break;
         }
     }
-    return;
 }

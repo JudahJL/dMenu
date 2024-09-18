@@ -20,11 +20,9 @@ namespace Utils {
 
     template<class T>
     void loadUsefulPlugins(std::unordered_set<RE::TESFile*>& mods) {
-        for(auto* form : RE::TESDataHandler::GetSingleton()->GetFormArray<T>()) {
+        for(const auto* const form : RE::TESDataHandler::GetSingleton()->GetFormArray<T>()) {
             if(form) [[likely]] {
-                if(!mods.contains(form->GetFile())) {
-                    mods.insert(form->GetFile());
-                }
+                mods.insert(form->GetFile());
             }
         }
     };

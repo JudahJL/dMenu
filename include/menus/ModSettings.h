@@ -1,15 +1,15 @@
 #pragma once
 
 #include "menus/Translator.h"
-#include "imgui.h"
+#include <imgui.h>
 #include <nlohmann/json.hpp>
 
 class ModSettings
 {
-    class setting_base;
-    class setting_checkbox;
-    class setting_slider;
-    class setting_keymap;
+    struct setting_base;
+    struct setting_checkbox;
+    struct setting_slider;
+    struct setting_keymap;
 
     // checkboxes' control key -> checkbox
     static inline std::unordered_map<std::string, std::shared_ptr<setting_checkbox>> m_checkbox_toggle_;
@@ -33,25 +33,21 @@ public:
 
     static std::string get_type_str(entry_type t);
 
-    class entry_base
-    {
-    public:
-        class Control
-        {
-        public:
-            class Req
-            {
-            public:
+    struct entry_base {
+        struct Control {
+            struct Req {
                 enum ReqType {
                     kReqType_Checkbox,
                     kReqType_GameSetting
                 };
 
+                 Req() = default;
+                ~Req() = default;
+
                 ReqType            type{ kReqType_Checkbox };
                 std::string        id{ "New Requirement" };
                 bool               _not{ false };  // the requirement needs to be off for satisfied() to return true
                 [[nodiscard]] bool satisfied() const;
-                                   Req() = default;
             };
 
             enum FailAction {
@@ -59,9 +55,12 @@ public:
                 kFailAction_Hide,
             };
 
-            FailAction       failAction{ kFailAction_Disable };
-            std::vector<Req> reqs;
-            [[nodiscard]] bool             satisfied() const;
+             Control() = default;
+            ~Control() = default;
+
+            FailAction         failAction{ kFailAction_Disable };
+            std::vector<Req>   reqs;
+            [[nodiscard]] bool satisfied() const;
         };
 
         entry_type   type{ kSettingType_Invalid };
@@ -73,56 +72,59 @@ public:
 
         [[nodiscard]] constexpr virtual bool is_group() const { return false; }
 
+        entry_base() = default;
+
+        entry_base(const entry_type type, const char* name):
+            type(type), name(Translatable(name)) { }
+
         virtual ~entry_base() = default;
     };
 
-    class entry_text: public entry_base
-    {
-    public:
-        ImVec4 _color;
+    struct entry_text: entry_base {
+        ImVec4 _color{ 1.0F, 1.0F, 1.0F, 1.0F };
 
-        entry_text() {
-            type   = kEntryType_Text;
-            name   = Translatable("New Text");
-            _color = ImVec4(1, 1, 1, 1);
-        }
+        entry_text():
+            entry_base(kEntryType_Text, "New Text") { }
+
+        ~entry_text() override = default;
     };
 
-    class entry_group: public entry_base
-    {
-    public:
+    struct entry_group: entry_base {
         std::vector<std::shared_ptr<entry_base>> entries;
 
-        entry_group() {
-            type = kEntryType_Group;
-            name = Translatable("New Group");
-        }
+        entry_group():
+            entry_base(kEntryType_Group, "New Group") { }
+
+        ~entry_group() override = default;
 
         [[nodiscard]] constexpr bool is_group() const override { return true; }
     };
 
-    class setting_base: public entry_base
-    {
-    public:
+    struct setting_base: entry_base {
         std::string ini_section;
         std::string ini_id;
 
         std::string gameSetting;
 
-        [[nodiscard]] bool is_setting() const override { return true; }
+        [[nodiscard]] constexpr bool is_setting() const override { return true; }
+
+        setting_base() = default;
+
+        setting_base(const entry_type a_type, const char* a_name) {
+            this->type = a_type;
+            this->name = Translatable(a_name);
+        };
 
         ~setting_base() override = default;
 
         virtual bool reset() { return false; };
     };
 
-    class setting_checkbox: public setting_base
-    {
-    public:
-        setting_checkbox() {
-            type = kEntryType_Checkbox;
-            name = Translatable("New Checkbox");
-        }
+    struct setting_checkbox: setting_base {
+        setting_checkbox():
+            setting_base(kEntryType_Checkbox, "New Checkbox") { }
+
+        ~setting_checkbox() override = default;
 
         bool        value{ true };
         bool        default_value{ true };
@@ -135,13 +137,11 @@ public:
         }
     };
 
-    class setting_slider: public setting_base
-    {
-    public:
-        setting_slider() {
-            type = kEntryType_Slider;
-            name = Translatable("New Slider");
-        }
+    struct setting_slider: setting_base {
+        setting_slider():
+            setting_base(kEntryType_Slider, "New Slider") { }
+
+        ~setting_slider() override = default;
 
         float   value{};
         float   min{};
@@ -157,18 +157,17 @@ public:
         }
     };
 
-    class setting_textbox: public setting_base
-    {
-    public:
+    struct setting_textbox: setting_base {
+        setting_textbox():
+            setting_base(kEntryType_Textbox, "New Textbox") {
+        }
+
+        ~setting_textbox() override = default;
+
         std::string value{};
         char*       buf{};
         std::string default_value{};
 
-        setting_textbox() {
-            type = kEntryType_Textbox;
-            name = Translatable("New Textbox");
-        }
-
         bool reset() override {
             const bool changed = value != default_value;
             value              = default_value;
@@ -176,36 +175,32 @@ public:
         }
     };
 
-    class setting_dropdown: public setting_base
-    {
-    public:
-        setting_dropdown() {
-            type = kEntryType_Dropdown;
-            name = Translatable("New Dropdown");
-        }
+    struct setting_dropdown: setting_base {
+        setting_dropdown():
+            setting_base(kEntryType_Dropdown, "New Dropdown") { }
+
+        ~setting_dropdown() override = default;
 
         std::vector<std::string> options;
-        int                      value{ 0 };  // index into options
-        int                      default_value{ 0 };
+        size_t                   value{ 0 };  // index into options
+        size_t                   default_value{ 0 };
 
         bool reset() override {
-            const bool changed = value != default_value;
-            value              = default_value;
+            const bool changed{ value != default_value };
+            value = default_value;
             return changed;
         }
     };
 
-    class setting_color: public setting_base
-    {
-    public:
-        setting_color() {
-            type = kEntryType_Color;
-            name = Translatable("New Color");
-        }
+    struct setting_color: setting_base {
+        setting_color():
+            setting_base(kEntryType_Color, "New Color") { }
+
+        ~setting_color() override = default;
 
         bool reset() override {
-            const bool changed = color.x != default_color.x || color.y != default_color.y || color.z != default_color.z || color.w != default_color.w;
-            color        = default_color;
+            const bool changed{ color.x != default_color.x || color.y != default_color.y || color.z != default_color.z || color.w != default_color.w };
+            color = default_color;
             return changed;
         }
 
@@ -213,28 +208,24 @@ public:
         ImVec4 default_color;
     };
 
-    class setting_keymap: public setting_base
-    {
-    public:
-        setting_keymap() {
-            type = kEntryType_Keymap;
-            name = Translatable("New Keymap");
-        }
+    struct setting_keymap: setting_base {
+        setting_keymap():
+            setting_base(kEntryType_Keymap, "New Keymap") { }
+
+        ~setting_keymap() override = default;
 
         uint32_t           value{ 0 };
         uint32_t           default_value{ 0 };
         static const char* keyid_to_str(uint32_t key_id);
     };
 
-    class entry_button: public entry_base
-    {
-    public:
-        entry_button() {
-            type = kEntryType_Button;
-            name = Translatable("New Button");
-        }
+    struct entry_button: entry_base {
+        entry_button():
+            entry_base(kEntryType_Button, "New Button") { }
 
-        std::string id{};
+        ~entry_button() override = default;
+
+        std::string id;
 
         [[nodiscard]] constexpr bool is_setting() const override {
             return false;
@@ -242,9 +233,7 @@ public:
     };
 
     /* Settings of one mod, represented by one .json file and serialized to one .ini file.*/
-    class mod_setting
-    {
-    public:
+    struct mod_setting {
         std::string                              name;
         std::vector<std::shared_ptr<entry_base>> entries;
         std::string                              ini_path;
@@ -259,8 +248,7 @@ public:
     static inline std::unordered_set<std::shared_ptr<mod_setting>> json_dirty_mods;  // mods whose changes need to be flushed to .json file. i.e. author has changed its setting
     static inline std::unordered_set<std::shared_ptr<mod_setting>> ini_dirty_mods;   // mods whose changes need to be flushed to .ini or gamesetting. i.e.  user has changed its setting
 
-public:
-    static void show();  // called by imgui per tick
+    static void show();                                                              // called by imgui per tick
 
     /* Load settings config from .json files and saved settings from .ini files*/
     static void init();
@@ -293,8 +281,6 @@ private:
 public:
     static void save_all_game_setting();
     static void insert_all_game_setting();
-
-public:
     static bool api_register_for_setting_update(std::string a_mod, std::function<void()> a_callback) = delete;
 
     static void send_all_settings_update_event();
@@ -315,5 +301,5 @@ private:
     static void send_settings_update_event(std::string_view modName);
     static void send_mod_callback_event(std::string_view mod_name, std::string_view str_arg);
 
-    static inline bool edit_mode = false;
+    static inline bool edit_mode{ false };
 };

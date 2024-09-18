@@ -5,7 +5,7 @@ message("Using toolchain file ${CMAKE_TOOLCHAIN_FILE}.")
 ########################################################################################################################
 project(
 	dmenu
-	VERSION 1.1.0.0
+	VERSION 1.1.0.1
 	DESCRIPTION ""
 	LANGUAGES CXX
 )

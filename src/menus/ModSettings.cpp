@@ -1,9 +1,9 @@
-#include "imgui_internal.h"
+#include <imgui_internal.h>
 #include <imgui_impl_dx11.h>
 // #include <imgui_impl_win32.h>
-#include "imgui_stdlib.h"
+#include <imgui_stdlib.h>
 
-#include "SimpleIni.h"
+#include <SimpleIni.h>
 #include "menus/ModSettings.h"
 
 #include "Utils.h"
@@ -14,17 +14,17 @@ inline bool ModSettings::entry_base::Control::Req::satisfied() const {
     bool val{ false };
     switch(type) {
         case kReqType_Checkbox: {
-            const auto it = ModSettings::m_checkbox_toggle_.find(id);
+            const auto it{ ModSettings::m_checkbox_toggle_.find(id) };
             if(it == ModSettings::m_checkbox_toggle_.end()) {
-                return val;
+                return false;
             }
             val = it->second->value;
         } break;
         case kReqType_GameSetting: {
             const auto gsc{ RE::GameSettingCollection::GetSingleton() };
-            const auto setting = gsc->GetSetting(id.c_str());
+            const auto setting{ gsc->GetSetting(id.c_str()) };
             if(!setting) {
-                return val;
+                return false;
             }
             val = setting->GetBool();
         } break;
@@ -33,18 +33,18 @@ inline bool ModSettings::entry_base::Control::Req::satisfied() const {
 }
 
 inline bool ModSettings::entry_base::Control::satisfied() const {
-    // return std::ranges::all_of(reqs.begin(), reqs.end(),[](const Req& r) {
-    //     return r.satisfied();
-    // });
-    for(auto& req : reqs) {
-        if(!req.satisfied()) {
-            return false;
-        }
-    }
-    return true;
+    return std::ranges::all_of(reqs.begin(), reqs.end(), [](const Req& r) {
+        return r.satisfied();
+    });
+    // for(const auto& req : reqs) {
+    //     if(!req.satisfied()) {
+    //         return false;
+    //     }
+    // }
+    // return true;
 }
 
-using json = nlohmann::json;
+// using json = nlohmann::json;
 
 void ModSettings::send_all_settings_update_event() {
     for(const auto& mod : mods) {
@@ -60,7 +60,7 @@ void ModSettings::show_reload_translation_button() {
 
 // not used anymore, we auto save.
 void ModSettings::show_save_button() {
-    const bool unsaved_changes = !ini_dirty_mods.empty();
+    const bool unsaved_changes{ !ini_dirty_mods.empty() };
 
     if(unsaved_changes) {
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2F, 0.7F, 0.3F, 1.0F));
@@ -100,9 +100,9 @@ void ModSettings::show_save_json_button() {
     const bool unsaved_changes = !json_dirty_mods.empty();
 
     if(unsaved_changes) {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.7f, 0.3f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f, 0.8f, 0.4f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.4f, 0.9f, 0.5f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2F, 0.7F, 0.3F, 1.0F));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3F, 0.8f, 0.4F, 1.0F));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.4F, 0.9F, 0.5F, 1.0F));
     }
 
     if(ImGui::Button("Save Config")) {
@@ -118,10 +118,10 @@ void ModSettings::show_save_json_button() {
 }
 
 void ModSettings::show_buttons_window() {
-    const ImVec2 main_window_size = ImGui::GetWindowSize();
-    const ImVec2 main_window_pos  = ImGui::GetWindowPos();
+    const ImVec2 main_window_size{ ImGui::GetWindowSize() };
+    const ImVec2 main_window_pos{ ImGui::GetWindowPos() };
 
-    const ImVec2 buttons_window_size = ImVec2(main_window_size.x * 0.15F, main_window_size.y * 0.1F);
+    const ImVec2 buttons_window_size{ ImVec2(main_window_size.x * 0.15F, main_window_size.y * 0.1F) };
 
     ImGui::SetNextWindowPos(ImVec2(main_window_pos.x + main_window_size.x, main_window_pos.y + main_window_size.y - buttons_window_size.y));
     ImGui::SetNextWindowSize(buttons_window_size);  // Adjust the height as needed
@@ -138,7 +138,7 @@ void ModSettings::show_buttons_window() {
 void ModSettings::show_entry_edit(const std::shared_ptr<entry_base>& entry, const std::shared_ptr<mod_setting>& mod) {
     ImGui::PushID(entry.get());
 
-    bool edited = false;
+    bool edited{ false };
 
     // Show input fields to edit the setting name and ini id
     if(ImGui::InputTextWithPasteRequired("Name", entry->name.def)) {
@@ -149,13 +149,13 @@ void ModSettings::show_entry_edit(const std::shared_ptr<entry_base>& entry, cons
     }
 
     // Show fields specific to the selected setting type
-    switch(const int current_type = entry->type; current_type) {
+    switch(const entry_type current_type{ entry->type }; current_type) {
         case kEntryType_Checkbox: {
-            const auto checkbox = std::dynamic_pointer_cast<setting_checkbox>(entry);
+            const auto checkbox{ std::dynamic_pointer_cast<setting_checkbox>(entry) };
             if(ImGui::Checkbox("Default", &checkbox->default_value)) {
                 edited = true;
             }
-            const std::string old_control_id = checkbox->control_id;
+            const std::string old_control_id{ checkbox->control_id };
             if(ImGui::InputTextWithPaste("Control ID", checkbox->control_id)) {  // on change of control id
                 if(!old_control_id.empty()) {                                    // remove old control id
                     m_checkbox_toggle_.erase(old_control_id);
@@ -168,50 +168,54 @@ void ModSettings::show_entry_edit(const std::shared_ptr<entry_base>& entry, cons
             break;
         }
         case kEntryType_Slider: {
-            const auto slider = std::dynamic_pointer_cast<setting_slider>(entry);
-            if(ImGui::InputFloat("Default", &slider->default_value))
+            const auto slider{ std::dynamic_pointer_cast<setting_slider>(entry) };
+            if(ImGui::InputFloat("Default", &slider->default_value)) {
                 edited = true;
-            if(ImGui::InputFloat("Min", &slider->min))
+            }
+            if(ImGui::InputFloat("Min", &slider->min)) {
                 edited = true;
-            if(ImGui::InputFloat("Max", &slider->max))
+            }
+            if(ImGui::InputFloat("Max", &slider->max)) {
                 edited = true;
-            if(ImGui::InputFloat("Step", &slider->step))
+            }
+            if(ImGui::InputFloat("Step", &slider->step)) {
                 edited = true;
+            }
             break;
         }
         case kEntryType_Textbox: {
-            auto textbox = std::dynamic_pointer_cast<setting_textbox>(entry);
-            if(ImGui::InputTextWithPaste("Default", textbox->default_value))
+            const auto textbox{ std::dynamic_pointer_cast<setting_textbox>(entry) };
+            if(ImGui::InputTextWithPaste("Default", textbox->default_value)) {
                 edited = true;
+            }
             break;
         }
         case kEntryType_Dropdown: {
-            const auto dropdown = std::dynamic_pointer_cast<setting_dropdown>(entry);
+            const auto dropdown{ std::dynamic_pointer_cast<setting_dropdown>(entry) };
             ImGui::Text("Dropdown options");
-            if(ImGui::BeginChild("##dropdown_items", ImVec2(0, 200), true, ImGuiWindowFlags_AlwaysAutoResize)) {
-                int buf{};
-                if(ImGui::InputInt("Default", &buf, 0, 100)) {
-                    dropdown->default_value = buf;
-                    edited                  = true;
+            if(ImGui::BeginChild("##dropdown_items", ImVec2(0.0F, 200.0F), true, ImGuiWindowFlags_AlwaysAutoResize)) {
+                constexpr size_t step{};
+                constexpr size_t step_fast{ 100 };
+                if(ImGui::InputScalar("Default", ImGuiDataType_U64, &dropdown->default_value, &step, &step_fast)) {
+                    edited = true;
                 }
                 if(ImGui::Button("Add")) {
                     dropdown->options.emplace_back();
                     edited = true;
                 }
-                for(int i{}; i < dropdown->options.size(); i++) {
-                    ImGui::PushID(i);
+                for(size_t i{}; i < dropdown->options.size(); i++) {
+                    ImGui::PushID(static_cast<int>(i));
                     if(ImGui::InputText("Option", &dropdown->options[i])) {
                         edited = true;
                     }
                     ImGui::SameLine();
                     if(ImGui::Button("-")) {
-                        dropdown->options.erase(dropdown->options.begin() + i);
+                        dropdown->options.erase(dropdown->options.begin() + static_cast<decltype(dropdown->options)::difference_type>(i));
                         if(dropdown->value == i) {  // erased current value
                             dropdown->value = 0;    // reset to 1st value
                         }
                         edited = true;
                     }
-
                     ImGui::PopID();
                 }
             }
@@ -221,8 +225,8 @@ void ModSettings::show_entry_edit(const std::shared_ptr<entry_base>& entry, cons
         case kEntryType_Text: {
             // color palette to set text color
             ImGui::Text("Text color");
-            if(ImGui::BeginChild("##text_color", ImVec2(0, 100), true, ImGuiWindowFlags_AlwaysAutoResize)) {
-                const auto text = std::dynamic_pointer_cast<entry_text>(entry);
+            if(ImGui::BeginChild("##text_color", ImVec2(0.0F, 100.0F), true, ImGuiWindowFlags_AlwaysAutoResize)) {
+                const auto text{ std::dynamic_pointer_cast<entry_text>(entry) };
                 std::array colorArray{ text->_color.x, text->_color.y, text->_color.z, text->_color.w };
                 if(ImGui::ColorEdit4("Color", colorArray.data())) {
                     text->_color = ImVec4(colorArray[0], colorArray[1], colorArray[2], colorArray[3]);
@@ -235,8 +239,8 @@ void ModSettings::show_entry_edit(const std::shared_ptr<entry_base>& entry, cons
         case kEntryType_Color: {
             // color palette to set text color
             ImGui::Text("Color");
-            if(ImGui::BeginChild("##color", ImVec2(0, 100), true, ImGuiWindowFlags_AlwaysAutoResize)) {
-                const auto color = std::dynamic_pointer_cast<setting_color>(entry);
+            if(ImGui::BeginChild("##color", ImVec2(0.0F, 100.0F), true, ImGuiWindowFlags_AlwaysAutoResize)) {
+                const auto color{ std::dynamic_pointer_cast<setting_color>(entry) };
                 std::array colorArray{ color->default_color.x, color->default_color.y, color->default_color.z, color->default_color.w };
                 if(ImGui::ColorEdit4("Default Color", colorArray.data())) {
                     color->default_color = ImVec4(colorArray[0], colorArray[1], colorArray[2], colorArray[3]);
@@ -249,9 +253,9 @@ void ModSettings::show_entry_edit(const std::shared_ptr<entry_base>& entry, cons
         case kEntryType_Keymap: {
             // color palette to set text color
             ImGui::Text("Keymap");
-            if(ImGui::BeginChild("##keymap", ImVec2(0, 100), true, ImGuiWindowFlags_AlwaysAutoResize)) {
-                auto keymap = std::dynamic_pointer_cast<setting_keymap>(entry);
-                if(ImGui::InputScalar("Default Key ID", ImGuiDataType_U32, &(keymap->default_value))) {
+            if(ImGui::BeginChild("##keymap", ImVec2(0.0F, 100.0F), true, ImGuiWindowFlags_AlwaysAutoResize)) {
+                const auto keymap{ std::dynamic_pointer_cast<setting_keymap>(entry) };
+                if(ImGui::InputScalar("Default Key ID", ImGuiDataType_U32, &keymap->default_value)) {
                     edited = true;
                 }
                 ImGui::EndChild();
@@ -260,24 +264,24 @@ void ModSettings::show_entry_edit(const std::shared_ptr<entry_base>& entry, cons
         }
         case kEntryType_Button: {
             ImGui::Text("Button");
-            if(ImGui::BeginChild("##button", ImVec2(0, 100), true, ImGuiWindowFlags_AlwaysAutoResize)) {
-                auto button = std::dynamic_pointer_cast<entry_button>(entry);
-                if(ImGui::InputText("ID", &(button->id))) {
+            if(ImGui::BeginChild("##button", ImVec2(0.0F, 100.0F), true, ImGuiWindowFlags_AlwaysAutoResize)) {
+                const auto button{ std::dynamic_pointer_cast<entry_button>(entry) };
+                if(ImGui::InputText("ID", &button->id)) {
                     edited = true;
                 }
                 ImGui::EndChild();
             }
-        }
+        } break;
         default:
             break;
     }
 
     ImGui::Text("Control");
     // choose fail action
-    constexpr std::array fail_actions = { "Disable", "Hide" };
-    if(ImGui::BeginCombo("Fail Action", fail_actions[std::to_underlying(entry->control.failAction)])) {
-        for(int i{}; i < fail_actions.size(); i++) {
-            const bool is_selected = (std::to_underlying(entry->control.failAction) == i);
+    constexpr std::array fail_actions{ "Disable", "Hide" };
+    if(ImGui::BeginCombo("Fail Action", fail_actions[static_cast<size_t>(entry->control.failAction)])) {
+        for(size_t i{}; i < fail_actions.size(); i++) {
+            const bool is_selected{ static_cast<size_t>(entry->control.failAction) == i };
 
             if(ImGui::Selectable(fail_actions[i], is_selected)) {
                 entry->control.failAction = static_cast<entry_base::Control::FailAction>(i);
@@ -293,18 +297,18 @@ void ModSettings::show_entry_edit(const std::shared_ptr<entry_base>& entry, cons
         edited = true;
     }
 
-    if(ImGui::BeginChild("##control_requirements", ImVec2(0, 100), true, ImGuiWindowFlags_AlwaysAutoResize)) {
+    if(ImGui::BeginChild("##control_requirements", ImVec2(0.0F, 100.0F), true, ImGuiWindowFlags_AlwaysAutoResize)) {
         // set the number of columns to 3
 
         for(size_t i{}; i < entry->control.reqs.size(); i++) {
-            auto& req = entry->control.reqs[i];  // get a reference to the requirement at index i
+            auto& req{ entry->control.reqs[i] };  // get a reference to the requirement at index i
             ImGui::PushID(&req);
             constexpr int num_columns{ 3 };
             ImGui::Columns(num_columns, nullptr, false);
             // set the width of each column to be the same
-            ImGui::SetColumnWidth(0, ImGui::GetWindowWidth() * 0.5f);
-            ImGui::SetColumnWidth(1, ImGui::GetWindowWidth() * 0.25f);
-            ImGui::SetColumnWidth(2, ImGui::GetWindowWidth() * 0.25f);
+            ImGui::SetColumnWidth(0, ImGui::GetWindowWidth() * 0.5F);
+            ImGui::SetColumnWidth(1, ImGui::GetWindowWidth() * 0.25F);
+            ImGui::SetColumnWidth(2, ImGui::GetWindowWidth() * 0.25F);
 
             if(ImGui::InputTextWithPaste("id", req.id)) {
                 edited = true;
@@ -312,10 +316,10 @@ void ModSettings::show_entry_edit(const std::shared_ptr<entry_base>& entry, cons
 
             // add the second column
             ImGui::NextColumn();
-            static constexpr std::array req_types = { "Checkbox", "GameSetting" };
-            if(ImGui::BeginCombo("Type", req_types[std::to_underlying(req.type)])) {
+            static constexpr std::array req_types{ "Checkbox", "GameSetting" };
+            if(ImGui::BeginCombo("Type", req_types[static_cast<size_t>(req.type)])) {
                 for(size_t ii{}; ii < req_types.size(); ii++) {
-                    const bool is_selected = (std::to_underlying(req.type) == ii);
+                    const bool is_selected{ static_cast<size_t>(req.type) == ii };
                     if(ImGui::Selectable(req_types[ii], is_selected)) {
                         req.type = static_cast<entry_base::Control::Req::ReqType>(ii);
                     }
@@ -333,9 +337,9 @@ void ModSettings::show_entry_edit(const std::shared_ptr<entry_base>& entry, cons
             }
             ImGui::SameLine();
             if(ImGui::Button("-")) {
-                entry->control.reqs.erase(entry->control.reqs.begin() + i);  // erase the requirement at index i
+                entry->control.reqs.erase(entry->control.reqs.begin() + static_cast<decltype(entry->control.reqs)::difference_type>(i));  // erase the requirement at index i
                 edited = true;
-                i--;                                                         // update the loop index to account for the erased element
+                i--;                                                                                                                      // update the loop index to account for the erased element
             }
             ImGui::Columns(1);
 
@@ -346,7 +350,7 @@ void ModSettings::show_entry_edit(const std::shared_ptr<entry_base>& entry, cons
     }
 
     ImGui::Text("Localization");
-    if(ImGui::BeginChild((std::string(entry->name.def) + "##Localization").c_str(), ImVec2(0, 100), true, ImGuiWindowFlags_AlwaysAutoResize)) {
+    if(ImGui::BeginChild((std::string(entry->name.def) + "##Localization").c_str(), ImVec2(0.0F, 100.0F), true, ImGuiWindowFlags_AlwaysAutoResize)) {
         if(ImGui::InputTextWithPaste("Name", entry->name.key)) {
             edited = true;
         }
@@ -357,9 +361,9 @@ void ModSettings::show_entry_edit(const std::shared_ptr<entry_base>& entry, cons
     }
 
     if(entry->is_setting()) {
-        auto setting = std::dynamic_pointer_cast<setting_base>(entry);
+        const auto setting{ std::dynamic_pointer_cast<setting_base>(entry) };
         ImGui::Text("Serialization");
-        if(ImGui::BeginChild((std::string(setting->name.def) + "##serialization").c_str(), ImVec2(0, 100), true, ImGuiWindowFlags_AlwaysAutoResize)) {
+        if(ImGui::BeginChild((std::string(setting->name.def) + "##serialization").c_str(), ImVec2(0.0F, 100.0F), true, ImGuiWindowFlags_AlwaysAutoResize)) {
             if(ImGui::InputTextWithPasteRequired("ini ID", setting->ini_id)) {
                 edited = true;
             }
@@ -379,7 +383,7 @@ void ModSettings::show_entry_edit(const std::shared_ptr<entry_base>& entry, cons
                         case 'u':
                             break;
                         default:
-                            ImGui::TextColored(ImVec4(1, 0, 0, 1), "For sliders, game setting must start with f, i, or u for float, int, or uint respectively for type specification.");
+                            ImGui::TextColored(ImVec4(1.0F, 0.0F, 0.0F, 1.0F), "For sliders, game setting must start with f, i, or u for float, int, or uint respectively for type specification.");
                             break;
                     }
                 }
@@ -394,12 +398,12 @@ void ModSettings::show_entry_edit(const std::shared_ptr<entry_base>& entry, cons
     ImGui::PopID();
 }
 
-void ModSettings::show_entry(const std::shared_ptr<entry_base>& entry, const std::shared_ptr<mod_setting>& mod) {
+void ModSettings::show_entry(const std::shared_ptr<entry_base>& entry, const std::shared_ptr<mod_setting>& mod) {  // NOLINT(*-no-recursion)
     ImGui::PushID(entry.get());
-    bool edited = false;
+    bool edited{ false };
 
     // check if all control requirements are met
-    const bool available = entry->control.satisfied();
+    const bool available{ entry->control.satisfied() };
     if(!available) {
         switch(entry->control.failAction) {
             case entry_base::Control::FailAction::kFailAction_Hide:
@@ -408,17 +412,17 @@ void ModSettings::show_entry(const std::shared_ptr<entry_base>& entry, const std
                     return;
                 }
             default:
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5F, 0.5F, 0.5F, 1.0F));
                 ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-                ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+                ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5F);
                 break;
         }
     }
 
-    const float width = ImGui::GetContentRegionAvail().x * 0.5f;
+    const float width{ ImGui::GetContentRegionAvail().x * 0.5F };
     switch(entry->type) {
         case kEntryType_Checkbox: {
-            const auto checkbox = std::dynamic_pointer_cast<setting_checkbox>(entry);
+            const auto checkbox{ std::dynamic_pointer_cast<setting_checkbox>(entry) };
 
             if(ImGui::Checkbox(checkbox->name.get(), &checkbox->value)) {
                 edited = true;
@@ -437,7 +441,7 @@ void ModSettings::show_entry(const std::shared_ptr<entry_base>& entry, const std
         } break;
 
         case kEntryType_Slider: {
-            const auto slider = std::dynamic_pointer_cast<setting_slider>(entry);
+            const auto slider{ std::dynamic_pointer_cast<setting_slider>(entry) };
 
             // Set the width of the slider to a fraction of the available width
             ImGui::SetNextItemWidth(width);
@@ -471,7 +475,7 @@ void ModSettings::show_entry(const std::shared_ptr<entry_base>& entry, const std
         } break;
 
         case kEntryType_Textbox: {
-            const auto textbox = std::dynamic_pointer_cast<setting_textbox>(entry);
+            const auto textbox{ std::dynamic_pointer_cast<setting_textbox>(entry) };
 
             ImGui::SetNextItemWidth(width);
             if(ImGui::InputText(textbox->name.get(), &textbox->value)) {
@@ -492,23 +496,15 @@ void ModSettings::show_entry(const std::shared_ptr<entry_base>& entry, const std
         } break;
 
         case kEntryType_Dropdown: {
-            const auto  dropdown = std::dynamic_pointer_cast<setting_dropdown>(entry);
-            const char* name     = dropdown->name.get();
-            int         selected = dropdown->value;
-
-            const std::vector<std::string>& options = dropdown->options;
-            // std::vector<const char*>        cstrings(options.size);
-            // for(const auto& option : options) {
-            //     cstrings.push_back(option.c_str());
-            // }
-            auto                            preview_value{ "" };
-            if(selected >= 0 && selected < options.size()) {
-                preview_value = options[selected].c_str();
-            }
+            const auto                      dropdown{ std::dynamic_pointer_cast<setting_dropdown>(entry) };
+            const auto                      name{ dropdown->name.get() };
+            auto                            selected{ dropdown->value };
+            const std::vector<std::string>& options{ dropdown->options };
+            const auto                      preview_value{ selected < options.size() ? options[selected].c_str() : "" };
             ImGui::SetNextItemWidth(width);
             if(ImGui::BeginCombo(name, preview_value)) {
-                for(int i = 0; i < options.size(); i++) {
-                    const bool is_selected = (selected == i);
+                for(size_t i{}; i < options.size(); i++) {
+                    const bool is_selected{ selected == i };
 
                     if(ImGui::Selectable(options[i].c_str(), is_selected)) {
                         selected        = i;
@@ -536,12 +532,12 @@ void ModSettings::show_entry(const std::shared_ptr<entry_base>& entry, const std
             }
         } break;
         case kEntryType_Text: {
-            const auto t = std::dynamic_pointer_cast<entry_text>(entry);
+            const auto t{ std::dynamic_pointer_cast<entry_text>(entry) };
             ImGui::TextColored(t->_color, t->name.get());
         } break;
         case kEntryType_Group: {
-            const auto g = std::dynamic_pointer_cast<entry_group>(entry);
-            ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+            const auto g{ std::dynamic_pointer_cast<entry_group>(entry) };
+            ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.0F, 0.0F, 0.0F, 0.0F));
             if(ImGui::CollapsingHeader(g->name.get())) {
                 if(ImGui::IsItemHovered() && !g->desc.empty()) {
                     ImGui::SetTooltip(g->desc.get());
@@ -553,8 +549,8 @@ void ModSettings::show_entry(const std::shared_ptr<entry_base>& entry, const std
             }
         } break;
         case kEntryType_Keymap: {
-            const auto        k    = std::dynamic_pointer_cast<setting_keymap>(entry);
-            const std::string hash = std::to_string(reinterpret_cast<unsigned long long>(reinterpret_cast<void**>(k.get())));
+            const auto        k{ std::dynamic_pointer_cast<setting_keymap>(entry) };
+            const std::string hash{ std::to_string(reinterpret_cast<unsigned long long>(reinterpret_cast<void**>(k.get()))) };
             if(ImGui::Button("Remap")) {
                 ImGui::OpenPopup(hash.c_str());
                 key_map_listening = k;
@@ -584,9 +580,8 @@ void ModSettings::show_entry(const std::shared_ptr<entry_base>& entry, const std
             }
         } break;
         case kEntryType_Color: {
-            const auto c = std::dynamic_pointer_cast<setting_color>(entry);
             ImGui::SetNextItemWidth(width);
-            const auto color = std::dynamic_pointer_cast<setting_color>(entry);
+            const auto color{ std::dynamic_pointer_cast<setting_color>(entry) };
             std::array color_array{ color->color.x, color->color.y, color->color.z, color->color.w };
             if(ImGui::ColorEdit4(color->name.get(), color_array.data())) {
                 color->color = ImVec4(color_array[0], color_array[1], color_array[2], color_array[3]);
@@ -597,13 +592,13 @@ void ModSettings::show_entry(const std::shared_ptr<entry_base>& entry, const std
                     edited |= color->reset();
                 }
             }
-            if(!c->desc.empty()) {
+            if(!color->desc.empty()) {
                 ImGui::SameLine();
-                ImGui::HoverNote(c->desc.get());
+                ImGui::HoverNote(color->desc.get());
             }
         } break;
         case kEntryType_Button: {
-            const auto b = std::dynamic_pointer_cast<entry_button>(entry);
+            const auto b{ std::dynamic_pointer_cast<entry_button>(entry) };
             if(ImGui::Button(b->name.get())) {
                 // trigger button callback
                 constexpr auto custom_event_name{ "dmenu_buttonCallback" };
@@ -613,7 +608,7 @@ void ModSettings::show_entry(const std::shared_ptr<entry_base>& entry, const std
                 ImGui::SameLine();
                 ImGui::HoverNote(b->desc.get());
             }
-        }
+        } break;
         default:
             break;
     }
@@ -628,19 +623,19 @@ void ModSettings::show_entry(const std::shared_ptr<entry_base>& entry, const std
     ImGui::PopID();
 }
 
-void ModSettings::show_entries(std::vector<std::shared_ptr<entry_base>>& entries, const std::shared_ptr<mod_setting>& mod) {
+void ModSettings::show_entries(std::vector<std::shared_ptr<entry_base>>& entries, const std::shared_ptr<mod_setting>& mod) {  // NOLINT(*-no-recursion)
     ImGui::PushID(&entries);
-    bool edited = false;
+    bool edited{ false };
 
-    for(auto it = entries.begin(); it != entries.end(); ++it) {
-        const auto& entry = *it;
+    for(auto it{ entries.begin() }; it != entries.end(); ++it) {
+        const auto& entry{ *it };
 
         ImGui::PushID(entry.get());
 
         ImGui::Indent();
         // edit entry
-        bool entry_deleted       = false;
-        bool all_entries_deleted = false;
+        bool entry_deleted{ false };
+        bool all_entries_deleted{ false };
 
         if(edit_mode) {
             if(ImGui::ArrowButton("##up", ImGuiDir_Up)) {
@@ -660,7 +655,7 @@ void ModSettings::show_entries(std::vector<std::shared_ptr<entry_base>>& entries
 
             if(ImGui::Button("Edit")) {  // Get the size of the current window
                 ImGui::OpenPopup("Edit Setting");
-                const ImVec2 windowSize = ImGui::GetWindowSize();
+                const ImVec2 windowSize{ ImGui::GetWindowSize() };
                 // Set the size of the pop-up to be proportional to the window size
                 const ImVec2 popupSize(windowSize.x * 0.5F, windowSize.y * 0.5F);
                 ImGui::SetNextWindowSize(popupSize);
@@ -679,7 +674,7 @@ void ModSettings::show_entries(std::vector<std::shared_ptr<entry_base>>& entries
                 // delete entry
                 ImGui::OpenPopup("Delete Confirmation");
                 // move popup mousepos
-                const ImVec2 mousePos = ImGui::GetMousePos();
+                const ImVec2 mousePos{ ImGui::GetMousePos() };
                 ImGui::SetNextWindowPos(mousePos);
             }
             if(ImGui::BeginPopupModal("Delete Confirmation", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
@@ -688,11 +683,11 @@ void ModSettings::show_entries(std::vector<std::shared_ptr<entry_base>>& entries
 
                 if(ImGui::Button("Yes", ImVec2(120, 0))) {
                     if(entry->type == entry_type::kEntryType_Checkbox) {
-                        const auto checkbox = std::dynamic_pointer_cast<setting_checkbox>(entry);
+                        const auto checkbox{ std::dynamic_pointer_cast<setting_checkbox>(entry) };
                         m_checkbox_toggle_.erase(checkbox->control_id);
                     }
-                    const bool should_decrement = it != entries.begin();
-                    it                          = entries.erase(it);
+                    const bool should_decrement{ it != entries.begin() };
+                    it = entries.erase(it);
                     if(should_decrement) {
                         --it;
                     }
@@ -735,25 +730,25 @@ void ModSettings::show_entries(std::vector<std::shared_ptr<entry_base>>& entries
         }
         if(ImGui::BeginPopup("Add Entry")) {
             if(ImGui::Selectable("Checkbox")) {
-                auto checkbox = std::make_shared<setting_checkbox>();
+                auto checkbox{ std::make_shared<setting_checkbox>() };
                 entries.emplace_back(std::move(checkbox));
                 edited = true;
                 logger::info("added entry");
             }
             if(ImGui::Selectable("Slider")) {
-                auto slider = std::make_shared<setting_slider>();
+                auto slider{ std::make_shared<setting_slider>() };
                 entries.emplace_back(std::move(slider));
                 edited = true;
                 logger::info("added entry");
             }
             if(ImGui::Selectable("Textbox")) {
-                auto textbox = std::make_shared<setting_textbox>();
+                auto textbox{ std::make_shared<setting_textbox>() };
                 entries.emplace_back(std::move(textbox));
                 edited = true;
                 logger::info("added entry");
             }
             if(ImGui::Selectable("Dropdown")) {
-                auto dropdown = std::make_shared<setting_dropdown>();
+                auto dropdown{ std::make_shared<setting_dropdown>() };
                 dropdown->options.emplace_back("Option 0");
                 dropdown->options.emplace_back("Option 1");
                 dropdown->options.emplace_back("Option 2");
@@ -762,31 +757,31 @@ void ModSettings::show_entries(std::vector<std::shared_ptr<entry_base>>& entries
                 logger::info("added entry");
             }
             if(ImGui::Selectable("Keymap")) {
-                auto keymap = std::make_shared<setting_keymap>();
+                auto keymap{ std::make_shared<setting_keymap>() };
                 entries.emplace_back(std::move(keymap));
                 edited = true;
                 logger::info("added entry");
             }
             if(ImGui::Selectable("Text")) {
-                auto text = std::make_shared<entry_text>();
+                auto text{ std::make_shared<entry_text>() };
                 entries.emplace_back(std::move(text));
                 edited = true;
                 logger::info("added entry");
             }
             if(ImGui::Selectable("Group")) {
-                auto group = std::make_shared<entry_group>();
+                auto group{ std::make_shared<entry_group>() };
                 entries.emplace_back(std::move(group));
                 edited = true;
                 logger::info("added entry");
             }
             if(ImGui::Selectable("Color")) {
-                auto color = std::make_shared<setting_color>();
+                auto color{ std::make_shared<setting_color>() };
                 entries.emplace_back(std::move(color));
                 edited = true;
                 logger::info("added entry");
             }
             if(ImGui::Selectable("Button")) {
-                auto button = std::make_shared<entry_button>();
+                auto button{ std::make_shared<entry_button>() };
                 entries.emplace_back(std::move(button));
                 edited = true;
                 logger::info("added entry");
@@ -805,9 +800,7 @@ inline void ModSettings::send_settings_update_event(const std::string_view modNa
     if(!event_source) [[unlikely]] {
         return;
     }
-    SKSE::ModCallbackEvent callback_event;
-    callback_event.eventName = "dmenu_updateSettings";
-    callback_event.strArg    = modName;
+    const SKSE::ModCallbackEvent callback_event{ "dmenu_updateSettings", modName };
     event_source->SendEvent(&callback_event);
 }
 
@@ -816,9 +809,7 @@ void ModSettings::send_mod_callback_event(const std::string_view mod_name, const
     if(!event_source) [[unlikely]] {
         return;
     }
-    SKSE::ModCallbackEvent callback_event;
-    callback_event.eventName = mod_name.data();
-    callback_event.strArg    = str_arg.data();
+    const SKSE::ModCallbackEvent callback_event{ mod_name.data(), str_arg.data() };
     event_source->SendEvent(&callback_event);
 }
 
@@ -909,11 +900,11 @@ void ModSettings::init() {
 
 std::shared_ptr<ModSettings::entry_base> ModSettings::load_json_non_group(const nlohmann::json& json) {
     std::shared_ptr<ModSettings::entry_base> e;
-    auto                                     type_str         = json.contains("type") ? json["type"].get<std::string>() : "";
-    auto&                                    json_default_ref = json.contains("default") ? json["default"] : nullptr;
-    auto&                                    json_style_ref   = json.contains("style") ? json["style"] : nullptr;
+    auto                                     type_str{ json.contains("type") ? json["type"].get<std::string>() : "" };
+    auto&                                    json_default_ref{ json.contains("default") ? json["default"] : nullptr };
+    auto&                                    json_style_ref{ json.contains("style") ? json["style"] : nullptr };
     if(type_str == "checkbox"s) {
-        auto scb           = std::make_shared<setting_checkbox>();
+        auto scb{ std::make_shared<setting_checkbox>() };
         scb->value         = json.contains("default") ? json_default_ref.get<bool>() : false;
         scb->default_value = scb->value;
         if(json.contains("control")) {
@@ -924,7 +915,7 @@ std::shared_ptr<ModSettings::entry_base> ModSettings::load_json_non_group(const 
         }
         e = std::move(scb);
     } else if(type_str == "slider"s) {
-        auto ssl           = std::make_shared<setting_slider>();
+        auto ssl{ std::make_shared<setting_slider>() };
         ssl->value         = json.contains("default") ? json_default_ref.get<float>() : 0;
         ssl->min           = json_style_ref["min"].get<float>();
         ssl->max           = json_style_ref["max"].get<float>();
@@ -932,47 +923,47 @@ std::shared_ptr<ModSettings::entry_base> ModSettings::load_json_non_group(const 
         ssl->default_value = ssl->value;
         e                  = std::move(ssl);
     } else if(type_str == "textbox"s) {
-        auto stb           = std::make_shared<setting_textbox>();
+        auto stb{ std::make_shared<setting_textbox>() };
         // size_t buf_size = json.contains("size") ? json["size"].get<size_t>() : 64;
         stb->value         = json.contains("default") ? json_default_ref.get<std::string>() : "";
         stb->default_value = stb->value;
         e                  = std::move(stb);
     } else if(type_str == "dropdown"s) {
-        auto sdd   = std::make_shared<setting_dropdown>();
-        sdd->value = json.contains("default") ? json_default_ref.get<int>() : 0;
+        auto sdd{ std::make_shared<setting_dropdown>() };
+        sdd->value = json.contains("default") ? json_default_ref.get<size_t>() : 0;
         for(auto& option_json : json["options"]) {
             sdd->options.push_back(option_json.get<std::string>());
         }
         sdd->default_value = sdd->value;
         e                  = std::move(sdd);
     } else if(type_str == "text"s) {
-        auto et = std::make_shared<entry_text>();
+        auto et{ std::make_shared<entry_text>() };
         if(json.contains("style") && json_style_ref.contains("color")) {
-            auto& json_style_color_ref = json_style_ref["color"];
-            et->_color                 = ImVec4(json_style_color_ref["r"].get<float>(), json_style_color_ref["g"].get<float>(), json_style_color_ref["b"].get<float>(), json_style_color_ref["a"].get<float>());
+            auto& json_style_color_ref{ json_style_ref["color"] };
+            et->_color = ImVec4(json_style_color_ref["r"].get<float>(), json_style_color_ref["g"].get<float>(), json_style_color_ref["b"].get<float>(), json_style_color_ref["a"].get<float>());
         }
         e = std::move(et);
     } else if(type_str == "color"s) {
-        auto sc           = std::make_shared<setting_color>();
+        auto sc{ std::make_shared<setting_color>() };
         sc->default_color = ImVec4(json_default_ref["r"].get<float>(), json_default_ref["g"].get<float>(), json_default_ref["b"].get<float>(), json_default_ref["a"].get<float>());
         sc->color         = sc->default_color;
         e                 = std::move(sc);
     } else if(type_str == "keymap"s) {
-        auto skm           = std::make_shared<setting_keymap>();
-        skm->default_value = json_default_ref.get<int>();
+        auto skm{ std::make_shared<setting_keymap>() };
+        skm->default_value = json_default_ref.get<decltype(skm->default_value)>();
         skm->value         = skm->default_value;
         e                  = std::move(skm);
     } else if(type_str == "button"s) {
-        auto sb = std::make_shared<entry_button>();
-        sb->id  = json["id"].get<std::string>();
-        e       = std::move(sb);
+        auto sb{ std::make_shared<entry_button>() };
+        sb->id = json["id"].get<std::string>();
+        e      = std::move(sb);
     } else [[unlikely]] {
         logger::info("Unknown setting type: {}", type_str);
         return nullptr;
     }
 
     if(e->is_setting()) {
-        const auto s = std::dynamic_pointer_cast<setting_base>(e);
+        const auto s{ std::dynamic_pointer_cast<setting_base>(e) };
         if(json.contains("gameSetting")) {
             s->gameSetting = json["gameSetting"].get<std::string>();
         }
@@ -985,30 +976,25 @@ std::shared_ptr<ModSettings::entry_base> ModSettings::load_json_non_group(const 
     return e;
 }
 
-std::shared_ptr<ModSettings::entry_group> ModSettings::load_json_group(const nlohmann::json& group_json) {
-    auto group = std::make_shared<entry_group>();
+std::shared_ptr<ModSettings::entry_group> ModSettings::load_json_group(const nlohmann::json& group_json) {  // NOLINT(*-no-recursion)
+    const auto group{ std::make_shared<entry_group>() };
     for(const auto& entry_json : group_json["entries"]) {
-        const auto entry = load_json_entry(entry_json);
-        if(entry) {
+        if(const auto entry{ load_json_entry(entry_json) }; entry) {
             group->entries.emplace_back(entry);
         }
     }
     return group;
 }
 
-std::shared_ptr<ModSettings::entry_base> ModSettings::load_json_entry(const nlohmann::json& entry_json) {
-    std::shared_ptr<ModSettings::entry_base> entry;
-    if(entry_json["type"].get<std::string>() == "group") {
-        entry = load_json_group(entry_json);
-    } else {
-        entry = load_json_non_group(entry_json);
-    }
+std::shared_ptr<ModSettings::entry_base> ModSettings::load_json_entry(const nlohmann::json& entry_json) {  // NOLINT(*-no-recursion)
+    auto entry{ entry_json["type"].get<std::string>() == "group" ? load_json_group(entry_json) : load_json_non_group(entry_json) };
+
     if(!entry) [[unlikely]] {
         logger::error("Failed to load json entry.");
         return nullptr;
     }
 
-    const auto& entry_json_text_ref = entry_json["text"];
+    const auto& entry_json_text_ref{ entry_json["text"] };
 
     entry->name.def = entry_json_text_ref["name"].get<std::string>();
     if(entry_json_text_ref.contains("desc")) {
@@ -1031,9 +1017,9 @@ std::shared_ptr<ModSettings::entry_base> ModSettings::load_json_entry(const nloh
         if(entry_json_control_ref.contains("requirements")) {
             for(const auto& req_json : entry_json_control_ref["requirements"]) {
                 entry_base::Control::Req req;
-                req.id              = req_json["id"].get<std::string>();
-                req._not            = !req_json["value"].get<bool>();
-                const auto req_type = req_json["type"].get<std::string>();
+                req.id   = req_json["id"].get<std::string>();
+                req._not = !req_json["value"].get<bool>();
+                const auto req_type{ req_json["type"].get<std::string>() };
                 if(req_type == "checkbox") {
                     req.type = entry_base::Control::Req::ReqType::kReqType_Checkbox;
                 } else if(req_type == "gameSetting") {
@@ -1042,11 +1028,11 @@ std::shared_ptr<ModSettings::entry_base> ModSettings::load_json_entry(const nloh
                     logger::info("Error: unknown requirement type: {}", req_type);
                     continue;
                 }
-                entry->control.reqs.push_back(req);
+                entry->control.reqs.emplace_back(std::move(req));
             }
         }
         if(entry_json_control_ref.contains("failAction")) {
-            const auto failAction = entry_json_control_ref["failAction"].get<std::string>();
+            const auto failAction{ entry_json_control_ref["failAction"].get<std::string>() };
             if(failAction == "disable") {
                 entry->control.failAction = entry_base::Control::kFailAction_Disable;
             } else if(failAction == "hide") {
@@ -1059,7 +1045,6 @@ std::shared_ptr<ModSettings::entry_base> ModSettings::load_json_entry(const nloh
 }
 
 void ModSettings::load_json(const std::filesystem::path& a_path) {
-    std::string   mod_path{ a_path.string() };
     // Load the JSON file for this mod
     std::ifstream json_file(a_path);
     if(!json_file.is_open()) {
@@ -1076,7 +1061,7 @@ void ModSettings::load_json(const std::filesystem::path& a_path) {
         return;
     }
     // Create a mod_setting object to hold the settings for this mod
-    auto mod = std::make_shared<mod_setting>();
+    auto mod{ std::make_shared<mod_setting>() };
 
     // name is .json's name
     mod->name      = a_path.stem().string();
@@ -1089,8 +1074,7 @@ void ModSettings::load_json(const std::filesystem::path& a_path) {
         }
 
         for(const auto& entry_json : mod_json["data"]) {
-            const auto entry = load_json_entry(entry_json);
-            if(entry) {
+            if(const auto entry{ load_json_entry(entry_json) }; entry) {
                 mod->entries.emplace_back(entry);
             }
         }
@@ -1100,7 +1084,7 @@ void ModSettings::load_json(const std::filesystem::path& a_path) {
         mods.emplace_back(std::move(mod));
     } catch(const nlohmann::json::exception& e) {
         // Handle error parsing JSON
-        logger::info("Exception parsing {} : {}", mod_path, e.what());
+        logger::info("Exception parsing {} : {}", a_path.string(), e.what());
     }
 }
 
@@ -1108,16 +1092,16 @@ void ModSettings::populate_non_group_json(const std::shared_ptr<entry_base>& ent
     if(!entry->is_setting()) {
         switch(entry->type) {
             case kEntryType_Text: {
-                const auto& color          = std::dynamic_pointer_cast<entry_text>(entry)->_color;
-                auto&       json_style_ref = json["style"]["color"];
-                json_style_ref["r"]        = color.x;
-                json_style_ref["g"]        = color.y;
-                json_style_ref["b"]        = color.z;
-                json_style_ref["a"]        = color.w;
+                const auto& color{ std::dynamic_pointer_cast<entry_text>(entry)->_color };
+                auto&       json_style_ref{ json["style"]["color"] };
+                json_style_ref["r"] = color.x;
+                json_style_ref["g"] = color.y;
+                json_style_ref["b"] = color.z;
+                json_style_ref["a"] = color.w;
             } break;
             case kEntryType_Button: {
-                const auto button = std::dynamic_pointer_cast<entry_button>(entry);
-                json["id"]        = button->id;
+                const auto button{ std::dynamic_pointer_cast<entry_button>(entry) };
+                json["id"] = button->id;
             } break;
             default:
                 break;
@@ -1125,8 +1109,8 @@ void ModSettings::populate_non_group_json(const std::shared_ptr<entry_base>& ent
         return;  // no need to continue, the following fields are only for settings
     }
 
-    const auto setting          = std::dynamic_pointer_cast<setting_base>(entry);
-    auto&      json_default_ref = json["Default"];
+    const auto setting{ std::dynamic_pointer_cast<setting_base>(entry) };
+    auto&      json_default_ref{ json["Default"] };
     {
         auto& json_ini_ref{ json["ini"] };
         json_ini_ref["section"] = setting->ini_section;
@@ -1138,46 +1122,46 @@ void ModSettings::populate_non_group_json(const std::shared_ptr<entry_base>& ent
 
     switch(setting->type) {
         case kEntryType_Checkbox: {
-            const auto cb_setting = std::dynamic_pointer_cast<setting_checkbox>(entry);
-            json_default_ref      = cb_setting->default_value;
+            const auto cb_setting{ std::dynamic_pointer_cast<setting_checkbox>(entry) };
+            json_default_ref = cb_setting->default_value;
             if(!cb_setting->control_id.empty()) {
                 json["control"]["id"] = cb_setting->control_id;
             }
         } break;
 
         case kEntryType_Slider: {
-            const auto slider_setting = std::dynamic_pointer_cast<setting_slider>(entry);
-            json_default_ref          = slider_setting->default_value;
-            auto& json_style_ref      = json["style"];
-            json_style_ref["min"]     = slider_setting->min;
-            json_style_ref["max"]     = slider_setting->max;
-            json_style_ref["step"]    = slider_setting->step;
+            const auto slider_setting{ std::dynamic_pointer_cast<setting_slider>(entry) };
+            json_default_ref = slider_setting->default_value;
+            auto& json_style_ref{ json["style"] };
+            json_style_ref["min"]  = slider_setting->min;
+            json_style_ref["max"]  = slider_setting->max;
+            json_style_ref["step"] = slider_setting->step;
         } break;
 
         case kEntryType_Textbox: {
-            const auto textbox_setting = std::dynamic_pointer_cast<setting_textbox>(entry);
-            json_default_ref           = textbox_setting->default_value;
+            const auto textbox_setting{ std::dynamic_pointer_cast<setting_textbox>(entry) };
+            json_default_ref = textbox_setting->default_value;
         } break;
 
         case kEntryType_Dropdown: {
-            const auto dropdown_setting = std::dynamic_pointer_cast<setting_dropdown>(entry);
-            json_default_ref            = dropdown_setting->default_value;
+            const auto dropdown_setting{ std::dynamic_pointer_cast<setting_dropdown>(entry) };
+            json_default_ref = dropdown_setting->default_value;
             for(auto& option : dropdown_setting->options) {
                 json["options"].push_back(option);
             }
         } break;
 
         case kEntryType_Color: {
-            const auto& color_setting = std::dynamic_pointer_cast<setting_color>(entry)->default_color;
-            json_default_ref["r"]     = color_setting.x;
-            json_default_ref["g"]     = color_setting.y;
-            json_default_ref["b"]     = color_setting.z;
-            json_default_ref["a"]     = color_setting.w;
+            const auto& color_setting{ std::dynamic_pointer_cast<setting_color>(entry)->default_color };
+            json_default_ref["r"] = color_setting.x;
+            json_default_ref["g"] = color_setting.y;
+            json_default_ref["b"] = color_setting.z;
+            json_default_ref["a"] = color_setting.w;
         } break;
 
         case kEntryType_Keymap: {
-            const auto keymap_setting = std::dynamic_pointer_cast<setting_keymap>(entry);
-            json_default_ref          = keymap_setting->default_value;
+            const auto keymap_setting{ std::dynamic_pointer_cast<setting_keymap>(entry) };
+            json_default_ref = keymap_setting->default_value;
         } break;
 
         default:
@@ -1185,7 +1169,7 @@ void ModSettings::populate_non_group_json(const std::shared_ptr<entry_base>& ent
     }
 }
 
-void ModSettings::populate_group_json(const std::shared_ptr<entry_group>& group, nlohmann::json& group_json) {
+void ModSettings::populate_group_json(const std::shared_ptr<entry_group>& group, nlohmann::json& group_json) {  // NOLINT(*-no-recursion)
     for(const auto& entry : group->entries) {
         nlohmann::json entry_json;
         populate_entry_json(entry, entry_json);
@@ -1193,10 +1177,10 @@ void ModSettings::populate_group_json(const std::shared_ptr<entry_group>& group,
     }
 }
 
-void ModSettings::populate_entry_json(const std::shared_ptr<entry_base>& entry, nlohmann::json& entry_json) {
+void ModSettings::populate_entry_json(const std::shared_ptr<entry_base>& entry, nlohmann::json& entry_json) {  // NOLINT(*-no-recursion)
     // common fields for entry
-    auto& entry_json_text_ref    = entry_json["text"];
-    auto& entry_json_translation = entry_json["translation"];
+    auto& entry_json_text_ref{ entry_json["text"] };
+    auto& entry_json_translation{ entry_json["translation"] };
 
     entry_json_text_ref["name"]    = entry->name.def;
     entry_json_text_ref["desc"]    = entry->desc.def;
@@ -1204,7 +1188,7 @@ void ModSettings::populate_entry_json(const std::shared_ptr<entry_base>& entry, 
     entry_json_translation["desc"] = entry->desc.key;
     entry_json["type"]             = get_type_str(entry->type);
 
-    auto& control_json = entry_json["control"];
+    auto& control_json{ entry_json["control"] };
 
     for(const auto& req : entry->control.reqs) {
         nlohmann::json req_json;
@@ -1223,7 +1207,7 @@ void ModSettings::populate_entry_json(const std::shared_ptr<entry_base>& entry, 
         req_json["type"]  = req_type;
         req_json["value"] = !req._not;
         req_json["id"]    = req.id;
-        control_json["requirements"].push_back(req_json);
+        control_json["requirements"].emplace_back(std::move(req_json));
     }
     switch(entry->control.failAction) {
         case entry_base::Control::kFailAction_Disable:
@@ -1255,7 +1239,7 @@ void ModSettings::flush_json(const std::shared_ptr<mod_setting>& mod) {
     for(const auto& entry : mod->entries) {
         nlohmann::json entry_json;
         populate_entry_json(entry, entry_json);
-        data_json.push_back(entry_json);
+        data_json.emplace_back(std::move(entry_json));
     }
 
     std::ofstream json_file(mod->json_path);
@@ -1265,7 +1249,7 @@ void ModSettings::flush_json(const std::shared_ptr<mod_setting>& mod) {
         return;
     }
 
-    mod_json["data"] = data_json;
+    mod_json["data"] = std::move(data_json);
 
     try {
         json_file << mod_json;
@@ -1290,7 +1274,7 @@ void ModSettings::get_all_settings(const std::shared_ptr<mod_setting>& mod, std:
         }
     }
     while(!group_stack.empty()) {  // get all groups
-        const auto group = group_stack.top();
+        const auto group{ group_stack.top() };
         group_stack.pop();
         for(const auto& entry : group->entries) {
             if(entry->is_group()) {
@@ -1311,7 +1295,7 @@ void ModSettings::get_all_entries(const std::shared_ptr<mod_setting>& mod, std::
         r_vec.push_back(entry);
     }
     while(!group_stack.empty()) {  // get all groups
-        const auto group = group_stack.top();
+        const auto group{ group_stack.top() };
         group_stack.pop();
         for(const auto& entry : group->entries) {
             if(entry->is_group()) {
@@ -1328,7 +1312,7 @@ void ModSettings::load_ini(const std::shared_ptr<mod_setting>& mod) {
     // Load the ini file
     CSimpleIniA ini;
     ini.SetUnicode();
-    SI_Error rc = ini.LoadFile(mod->ini_path.c_str());
+    const SI_Error rc{ ini.LoadFile(mod->ini_path.c_str()) };
     if(rc != SI_OK) [[unlikely]] {
         // Handle error loading file
         logger::info(".ini file for {} not found. Creating a new .ini file.", mod->name);
@@ -1357,29 +1341,29 @@ void ModSettings::load_ini(const std::shared_ptr<mod_setting>& mod) {
             // Convert the value to the appropriate type and assign it to the setting
             switch(setting_ptr->type) {
                 case kEntryType_Checkbox: {
-                    const auto settings_checkbox_ptr = std::dynamic_pointer_cast<setting_checkbox>(setting_ptr);
-                    settings_checkbox_ptr->value     = settings_checkbox_ptr->default_value;
+                    const auto settings_checkbox_ptr{ std::dynamic_pointer_cast<setting_checkbox>(setting_ptr) };
+                    settings_checkbox_ptr->value = settings_checkbox_ptr->default_value;
                 } break;
 
                 case kEntryType_Slider: {
-                    const auto settings_slider_ptr = std::dynamic_pointer_cast<setting_slider>(setting_ptr);
-                    settings_slider_ptr->value     = settings_slider_ptr->default_value;
+                    const auto settings_slider_ptr{ std::dynamic_pointer_cast<setting_slider>(setting_ptr) };
+                    settings_slider_ptr->value = settings_slider_ptr->default_value;
                 } break;
 
                 case kEntryType_Textbox: {
-                    const auto settings_textbox_ptr = std::dynamic_pointer_cast<setting_textbox>(setting_ptr);
-                    settings_textbox_ptr->value     = settings_textbox_ptr->default_value;
+                    const auto settings_textbox_ptr{ std::dynamic_pointer_cast<setting_textbox>(setting_ptr) };
+                    settings_textbox_ptr->value = settings_textbox_ptr->default_value;
                 } break;
 
                 case kEntryType_Dropdown: {
-                    const auto settings_dropdown_ptr = std::dynamic_pointer_cast<setting_dropdown>(setting_ptr);
-                    settings_dropdown_ptr->value     = settings_dropdown_ptr->default_value;
+                    const auto settings_dropdown_ptr{ std::dynamic_pointer_cast<setting_dropdown>(setting_ptr) };
+                    settings_dropdown_ptr->value = settings_dropdown_ptr->default_value;
                 } break;
 
                 case kEntryType_Color: {
-                    const auto  setting_color_ptr         = std::dynamic_pointer_cast<setting_color>(setting_ptr);
-                    auto&       setting_color_ref         = setting_color_ptr->color;
-                    const auto& setting_default_color_ref = setting_color_ptr->default_color;
+                    const auto  setting_color_ptr{ std::dynamic_pointer_cast<setting_color>(setting_ptr) };
+                    auto&       setting_color_ref{ setting_color_ptr->color };
+                    const auto& setting_default_color_ref{ setting_color_ptr->default_color };
 
                     setting_color_ref.x = setting_default_color_ref.x;
                     setting_color_ref.y = setting_default_color_ref.y;
@@ -1388,8 +1372,8 @@ void ModSettings::load_ini(const std::shared_ptr<mod_setting>& mod) {
                 } break;
 
                 case kEntryType_Keymap: {
-                    const auto settings_keymap_ptr = std::dynamic_pointer_cast<setting_keymap>(setting_ptr);
-                    settings_keymap_ptr->value     = settings_keymap_ptr->default_value;
+                    const auto settings_keymap_ptr{ std::dynamic_pointer_cast<setting_keymap>(setting_ptr) };
+                    settings_keymap_ptr->value = settings_keymap_ptr->default_value;
                 } break;
 
                 default:
@@ -1417,12 +1401,12 @@ void ModSettings::load_ini(const std::shared_ptr<mod_setting>& mod) {
                     } break;
 
                     case kEntryType_Color: {
-                        const uint32_t colUInt           = std::stoul(value);
-                        auto&          setting_color_ref = std::dynamic_pointer_cast<setting_color>(setting_ptr)->color;
-                        setting_color_ref.x              = ((colUInt >> IM_COL32_R_SHIFT) & 0xFF) / 255.0F;
-                        setting_color_ref.y              = ((colUInt >> IM_COL32_G_SHIFT) & 0xFF) / 255.0F;
-                        setting_color_ref.z              = ((colUInt >> IM_COL32_B_SHIFT) & 0xFF) / 255.0F;
-                        setting_color_ref.w              = ((colUInt >> IM_COL32_A_SHIFT) & 0xFF) / 255.0F;
+                        const auto colUInt{ std::stoul(value) };
+                        auto&      setting_color_ref{ std::dynamic_pointer_cast<setting_color>(setting_ptr)->color };
+                        setting_color_ref.x = static_cast<float>(colUInt >> IM_COL32_R_SHIFT & 0xFF) / 255.0F;
+                        setting_color_ref.y = static_cast<float>(colUInt >> IM_COL32_G_SHIFT & 0xFF) / 255.0F;
+                        setting_color_ref.z = static_cast<float>(colUInt >> IM_COL32_B_SHIFT & 0xFF) / 255.0F;
+                        setting_color_ref.w = static_cast<float>(colUInt >> IM_COL32_A_SHIFT & 0xFF) / 255.0F;
                     } break;
 
                     case kEntryType_Keymap: {
@@ -1476,10 +1460,10 @@ void ModSettings::flush_ini(const std::shared_ptr<mod_setting>& mod) {
 
             case kEntryType_Color: {
                 // from imvec4 float to imu32
-                const auto& sc  = std::dynamic_pointer_cast<setting_color>(setting)->color;
+                const auto& sc{ std::dynamic_pointer_cast<setting_color>(setting)->color };
                 // Step 1: Extract components
-                ImU32       col = IM_COL32(sc.x * 255.0F, sc.y * 255.0F, sc.z * 255.0F, sc.w * 255.0F);
-                value           = std::to_string(col);
+                const ImU32 col{ IM_COL32(sc.x * 255.0F, sc.y * 255.0F, sc.z * 255.0F, sc.w * 255.0F) };
+                value = std::to_string(col);
             } break;
 
             case kEntryType_Keymap: {
@@ -1510,7 +1494,7 @@ void ModSettings::flush_game_setting(const std::shared_ptr<mod_setting>& mod) {
         if(setting->gameSetting.empty()) {
             continue;
         }
-        RE::Setting* s = gsc->GetSetting(setting->gameSetting.c_str());
+        auto* s{ gsc->GetSetting(setting->gameSetting.c_str()) };
         if(!s) [[unlikely]] {
             logger::info("Error: Game setting not found when trying to save game setting {} for setting {}", setting->gameSetting, setting->name.def);
             return;
@@ -1520,7 +1504,7 @@ void ModSettings::flush_game_setting(const std::shared_ptr<mod_setting>& mod) {
                 s->data.b = std::dynamic_pointer_cast<setting_checkbox>(setting)->value;
             } break;
             case kEntryType_Slider: {
-                const float val = std::dynamic_pointer_cast<setting_slider>(setting)->value;
+                const float val{ std::dynamic_pointer_cast<setting_slider>(setting)->value };
                 switch(s->GetType()) {
                     case RE::Setting::Type::kUnsignedInteger:
                         s->data.u = static_cast<uint32_t>(val);
@@ -1541,15 +1525,15 @@ void ModSettings::flush_game_setting(const std::shared_ptr<mod_setting>& mod) {
             } break;
             case kEntryType_Dropdown: {
                 //s->SetUnsignedInteger(dynamic_cast<setting_dropdown*>(setting_ptr)->value);
-                s->data.i = (std::dynamic_pointer_cast<setting_dropdown>(setting)->value);
+                s->data.i = static_cast<int32_t>(std::dynamic_pointer_cast<setting_dropdown>(setting)->value);
             } break;
             case kEntryType_Keymap: {
-                s->data.i = (std::dynamic_pointer_cast<setting_keymap>(setting)->value);
+                s->data.i = static_cast<int32_t>(std::dynamic_pointer_cast<setting_keymap>(setting)->value);
             } break;
             case kEntryType_Color: {
-                const auto& sc  = std::dynamic_pointer_cast<setting_color>(setting)->color;
-                const ImU32 col = IM_COL32(sc.x * 255.0F, sc.y * 255.0F, sc.z * 255.0F, sc.w * 255.0F);
-                s->data.u       = col;
+                const auto& sc{ std::dynamic_pointer_cast<setting_color>(setting)->color };
+                const ImU32 col{ IM_COL32(sc.x * 255.0F, sc.y * 255.0F, sc.z * 255.0F, sc.w * 255.0F) };
+                s->data.u = col;
             } break;
 
             default:
@@ -1568,13 +1552,13 @@ void ModSettings::insert_game_setting(const std::shared_ptr<mod_setting>& mod) {
     }
     for(const auto& entry : entries) {
         if(entry->is_setting()) {
-            const auto es = std::dynamic_pointer_cast<ModSettings::setting_base>(entry);
+            const auto es{ std::dynamic_pointer_cast<ModSettings::setting_base>(entry) };
             // insert setting setting
             if(!es->gameSetting.empty()) {                      // gamesetting mapping
                 if(gsc->GetSetting(es->gameSetting.c_str())) {  // setting already exists
                     return;
                 }
-                es->gameSetting;
+
                 RE::Setting* s = Utils::MakeSetting(es->gameSetting.data());
                 gsc->InsertSetting(s);
                 if(!gsc->GetSetting(es->gameSetting.c_str())) {
@@ -1587,7 +1571,7 @@ void ModSettings::insert_game_setting(const std::shared_ptr<mod_setting>& mod) {
         for(auto& req : entry->control.reqs) {
             if(req.type == entry_base::Control::Req::kReqType_GameSetting) {
                 if(!gsc->GetSetting(req.id.c_str())) {
-                    RE::Setting* s = Utils::MakeSetting(req.id.data());
+                    RE::Setting* s{ Utils::MakeSetting(req.id.data()) };
                     gsc->InsertSetting(s);
                 }
             }

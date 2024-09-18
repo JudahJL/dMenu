@@ -44,10 +44,10 @@ namespace ini {
 
 namespace UI {
     void show() {
-        const ImVec2 parentSize = ImGui::GetMainViewport()->Size;
+        const ImVec2 parentSize{ ImGui::GetMainViewport()->Size };
 
-        const float new_relative_window_size_h = ImGui::GetWindowWidth() / parentSize.x;
-        const float new_relative_window_size_v = ImGui::GetWindowHeight() / parentSize.y;
+        const float new_relative_window_size_h{ ImGui::GetWindowWidth() / parentSize.x };
+        const float new_relative_window_size_v{ ImGui::GetWindowHeight() / parentSize.y };
 
         if(Settings::relative_window_size_h != new_relative_window_size_h) {
             Settings::relative_window_size_h = new_relative_window_size_h;
@@ -57,7 +57,7 @@ namespace UI {
             Settings::relative_window_size_v = new_relative_window_size_v;
         }
 
-        const auto windowPos = ImGui::GetWindowPos();
+        const auto windowPos{ ImGui::GetWindowPos() };
         // get windowpos
         if(Settings::windowPos_x != windowPos.x) {
             Settings::windowPos_x = windowPos.x;
@@ -89,7 +89,7 @@ namespace UI {
             ImGui::GetIO().FontGlobalScale = Settings::fontScale;
         }
 
-        ImGui::InputInt("Toggle Key", reinterpret_cast<int*>(&Settings::key_toggle_dmenu));
+        ImGui::InputScalar("Toggle Key", ImGuiDataType_U32, &Settings::key_toggle_dmenu);
         static constexpr std::array log_levels{
             "trace",
             "debug",
@@ -101,9 +101,9 @@ namespace UI {
         };
         static int current_log_level{ spdlog::level::from_str(Settings::log_level) };
         if(ImGui::Combo("Log Level", &current_log_level, log_levels.data(), static_cast<int>(log_levels.size()))) {
-            spdlog::set_level(spdlog::level::from_str(log_levels[current_log_level]));
-            spdlog::flush_on(spdlog::level::from_str(log_levels[current_log_level]));
-            Settings::log_level = log_levels[current_log_level];
+            spdlog::set_level(spdlog::level::from_str(log_levels[static_cast<decltype(log_levels)::size_type>(current_log_level)]));
+            spdlog::flush_on(spdlog::level::from_str(log_levels[static_cast<decltype(log_levels)::size_type>(current_log_level)]));
+            Settings::log_level = log_levels[static_cast<decltype(log_levels)::size_type>(current_log_level)];
         }
     }
 }  // namespace UI

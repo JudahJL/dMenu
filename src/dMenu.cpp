@@ -1,7 +1,7 @@
 // #include <imgui_impl_dx11.h>
 // #include <imgui_impl_win32.h>
-// #include "imgui_internal.h"
-#include "imgui.h"
+// #include <imgui_internal.h>
+#include <imgui.h>
 
 #include "dMenu.h"
 #include "menus/AIM.h"
@@ -17,7 +17,7 @@ void DMenu::draw() {
     const float  screenSizeY{ screenSize.y };
     ImGui::SetNextWindowSize(ImVec2(Settings::relative_window_size_h * screenSizeX, Settings::relative_window_size_v * screenSizeY));
 
-    SKSE::stl::enumeration windowFlags{ImGuiWindowFlags_None};
+    SKSE::stl::enumeration windowFlags{ ImGuiWindowFlags_None };
 
     if(Settings::lockWindowPos) {
         windowFlags.set(ImGuiWindowFlags_NoMove);

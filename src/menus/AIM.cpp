@@ -1,4 +1,4 @@
-#include "imgui.h"
+#include <imgui.h>
 // #include "imgui_internal.h"
 // #include <imgui_impl_dx11.h>
 // #include <imgui_impl_win32.h>
@@ -11,9 +11,9 @@
 #include <nlohmann/json.hpp>
 
 // I swear I will RE this
-inline void sendConsoleCommand(const std::string& a_command) {
+inline void sendConsoleCommand(const std::string_view a_command) {
     const auto scriptFactory{ RE::IFormFactory::GetConcreteFormFactoryByType<RE::Script>() };
-    if(const auto script = scriptFactory ? scriptFactory->Create() : nullptr; script) {
+    if(const auto script{ scriptFactory ? scriptFactory->Create() : nullptr }; script) {
         const auto selectedRef{ RE::Console::GetSelectedRef() };
         script->SetCommand(a_command);
         script->CompileAndRun(selectedRef.get());
@@ -21,29 +21,47 @@ inline void sendConsoleCommand(const std::string& a_command) {
     }
 }
 
-static bool init_ = false;
+static bool init_{ false };
 
-static std::map<std::string, bool> bgs_types = {
-    {     "Weapon", false },
-    {      "Armor", false },
-    {       "Ammo", false },
-    {       "Book", false },
-    { "Ingredient", false },
-    {        "Key", false },
-    {       "Misc", false },
-    {        "NPC", false }
-};
+static std::vector<std::pair<const RE::TESFile*, bool>> g_mods;
+static size_t                                           g_selectedModIndex{};
 
-static std::vector<std::pair<RE::TESFile*, bool>> _mods;
-static int                                        _selectedModIndex = -1;
+static std::map<std::string, RE::TESForm*> g_items;  // items to show on AIM
+static RE::TESForm*                        g_selectedItem;
 
-static std::map<std::string, RE::TESForm*> _items;  // items to show on AIM
-static RE::TESForm*                        _selectedItem;
+static bool g_cached{ false };
 
-static bool _cached{ false };
+static ImGuiTextFilter g_modFilter;
+static ImGuiTextFilter g_itemFilter;
 
-static ImGuiTextFilter _modFilter;
-static ImGuiTextFilter _itemFilter;
+template<class T>
+void cacheItems(RE::TESDataHandler* a_data) {
+    const RE::TESFile* selectedMod{ g_mods[g_selectedModIndex].first };
+    for(const auto form : a_data->GetFormArray<T>()) {
+        if(selectedMod->IsFormInMod(form->GetFormID()) && form->GetFullNameLength() != 0) {
+            const std::string name{ std::format("{}{}", form->GetFullName(), form->IsArmor() ? (form->template As<RE::TESObjectARMO>()->IsHeavyArmor() ? " (Heavy)" : " (Light)") : "") };
+            // if(form->IsArmor()) {
+            //     if(form->template As<RE::TESObjectARMO>()->IsHeavyArmor()) {
+            //         name.append(" (Heavy)"s, 8);
+            //     } else {
+            //         name.append(" (Light)"s, 8);
+            //     }
+            // }
+            g_items.insert({ name, form });
+        }
+    }
+}
+
+static std::array<std::tuple<const std::string, bool, void(*)(RE::TESDataHandler*)>, 8> bgs_types{{
+    { "Weapon", false, cacheItems<RE::TESObjectWEAP> },
+    { "Armor", false, cacheItems<RE::TESObjectARMO> },
+    { "Ammo", false, cacheItems<RE::TESAmmo> },
+    { "Book", false, cacheItems<RE::TESObjectBOOK> },
+    { "Ingredient", false, cacheItems<RE::IngredientItem> },
+    { "Key", false, cacheItems<RE::TESKey> },
+    { "Misc", false, cacheItems<RE::TESObjectMISC> },
+    { "NPC", false, cacheItems<RE::TESNPC> }
+}};
 
 void AIM::init() {
     if(init_) [[unlikely]] {
@@ -61,72 +79,41 @@ void AIM::init() {
     Utils::loadUsefulPlugins<RE::TESObjectMISC>(mods);
     Utils::loadUsefulPlugins<RE::TESNPC>(mods);
 
-    for(auto mod : mods) {
-        _mods.emplace_back(mod, false);
+    for(const auto* mod : mods) {
+        g_mods.emplace_back(mod, false);
     }
-
-    _selectedModIndex = 0;
 
     init_ = true;
     logger::info("AIM initialized");
 }
 
-template<class T>
-void cacheItems(RE::TESDataHandler* a_data) {
-    RE::TESFile* selectedMod = _mods[_selectedModIndex].first;
-    for(auto form : a_data->GetFormArray<T>()) {
-        if(selectedMod->IsFormInMod(form->GetFormID()) && form->GetFullNameLength() != 0) {
-            std::string name = form->GetFullName();
-            if(form->IsArmor()) {
-                if(form->template As<RE::TESObjectARMO>()->IsHeavyArmor()) {
-                    name += " (Heavy)";
-                } else {
-                    name += " (Light)";
-                }
-            }
-            _items.insert({ name, form });
-        }
-    }
-}
-
 /* Present all filtered items to the user under the "Items" section*/
 void cache() {
-    _items.clear();
-    const auto data{ RE::TESDataHandler::GetSingleton() };
-    if(!data || _selectedModIndex == -1) {
+    g_items.clear();
+    auto* data{ RE::TESDataHandler::GetSingleton() };
+    if(!data || g_selectedModIndex == std::numeric_limits<std::size_t>::max()) {
         return;
     }
-    constexpr std::array cacheFunctions = {
-        cacheItems<RE::TESObjectWEAP>,
-        cacheItems<RE::TESObjectARMO>,
-        cacheItems<RE::TESAmmo>,
-        cacheItems<RE::TESObjectBOOK>,
-        cacheItems<RE::IngredientItem>,
-        cacheItems<RE::TESKey>,
-        cacheItems<RE::TESObjectMISC>,
-        cacheItems<RE::TESNPC>
-    };
-    int i{};
-    for(const auto& [_, value] : bgs_types) {
+
+    uint8_t i{};
+    for(const auto& [_,value, function] : bgs_types) {
         if(value) {
-            cacheFunctions[i](data);
+            function(data);
         }
         i++;
     }
     // filter out unplayable weapons in 2nd pass
-    for(auto it = _items.begin(); it != _items.end();) {
-        const auto* form = it->second;
+    for(auto it{ g_items.begin() }; it != g_items.end(); ++it) {
+        const auto* const form{ it->second };
         switch(form->GetFormType()) {
             case RE::FormType::Weapon:
                 if(form->As<RE::TESObjectWEAP>()->weaponData.flags.any(RE::TESObjectWEAP::Data::Flag::kNonPlayable)) {
-                    it = _items.erase(it);
-                    continue;
+                    it = g_items.erase(it);
                 }
                 break;
             default:
                 break;
         }
-        ++it;
     }
 }
 
@@ -136,16 +123,16 @@ void AIM::show() {
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5, 5));
 
     // Render the mod filter box
-    _modFilter.Draw("Mod Name");
+    g_modFilter.Draw("Mod Name");
 
     // Render the mod dropdown menu
-    if(ImGui::BeginCombo("Mods", _mods[_selectedModIndex].first->GetFilename().data())) {
-        for(int i{}; i < _mods.size(); i++) {
-            if(_modFilter.PassFilter(_mods[i].first->GetFilename().data())) {
-                const bool isSelected = (_mods[_selectedModIndex].first == _mods[i].first);
-                if(ImGui::Selectable(_mods[i].first->GetFilename().data(), isSelected)) {
-                    _selectedModIndex = i;
-                    _cached           = false;
+    if(ImGui::BeginCombo("Mods", g_mods[g_selectedModIndex].first->GetFilename().data())) {
+        for(size_t i{}; i < g_mods.size(); i++) {
+            if(g_modFilter.PassFilter(g_mods[i].first->GetFilename().data())) {
+                const bool isSelected{ (g_mods[g_selectedModIndex].first == g_mods[i].first) };
+                if(ImGui::Selectable(g_mods[i].first->GetFilename().data(), isSelected)) {
+                    g_selectedModIndex = i;
+                    g_cached           = false;
                 }
                 if(isSelected) {
                     ImGui::SetItemDefaultFocus();
@@ -163,9 +150,9 @@ void AIM::show() {
     // Group related controls together
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(10, 0));
     for(auto i{ bgs_types.begin() }; i != bgs_types.end(); ++i) {
-        auto& [key, value] = *i;
+        auto& [key, value, _]{ *i };
         if(ImGui::Checkbox(key.c_str(), &value)) {
-            _cached = false;
+            g_cached = false;
         }
         if(i != std::prev(bgs_types.end())) {
             ImGui::SameLine();
@@ -175,23 +162,23 @@ void AIM::show() {
 
     ImGui::Spacing();
     // Render the list of items
-    _itemFilter.Draw("Item Name");
+    g_itemFilter.Draw("Item Name");
 
     // Use a child window to limit the size of the item list
     ImGui::BeginChild("Items", ImVec2(0, ImGui::GetContentRegionAvail().y * 0.7F), true);
 
-    for(auto& [key, value] : _items) {
+    for(auto& [key, value] : g_items) {
         // Filter
-        if(_itemFilter.PassFilter(key.data())) {
+        if(g_itemFilter.PassFilter(key.data())) {
             ImGui::Selectable(key.data());
 
             if(ImGui::IsItemClicked()) {
-                _selectedItem = value;
+                g_selectedItem = value;
             }
 
             if(ImGui::IsItemHovered()) {
                 ImGui::BeginTooltip();
-                ImGui::Text(std::format("{:x}", value->GetFormID()).c_str());
+                ImGui::Text(std::format("{:X}", value->GetFormID()).c_str());
                 ImGui::EndTooltip();
             }
             // show item texture
@@ -200,27 +187,27 @@ void AIM::show() {
     ImGui::EndChild();
 
     // Show selected item info and spawn button
-    if(_selectedItem != nullptr) [[likely]] {
+    if(g_selectedItem != nullptr) [[likely]] {
         ImGui::Text("Selected Item: ");
         ImGui::SameLine();
-        ImGui::TextColored(ImVec4(1.0F, 0.5F, 0.0F, 1.0F), "%s", _selectedItem->GetName());
-        static char buf[16]{ "1" };
+        ImGui::TextColored(ImVec4(1.0F, 0.5F, 0.0F, 1.0F), "%s", g_selectedItem->GetName());
+        static std::array<char, 16> buf{ "1" };
         if(ImGui::Button("Spawn", ImVec2(ImGui::GetContentRegionAvail().x * 0.2F, 0.0F))) {
             if(RE::PlayerCharacter::GetSingleton() != nullptr) [[likely]] {
                 // Spawn item
-                const std::string cmd{ std::format("player.{} {:x} {}", _selectedItem->GetFormType() == RE::FormType::NPC ? "placeatme" : "additem", _selectedItem->GetFormID(), buf) };
+                const std::string cmd{ std::format("player.{} {:x} {}", g_selectedItem->GetFormType() == RE::FormType::NPC ? "placeatme" : "additem", g_selectedItem->GetFormID(), buf.data()) };
                 sendConsoleCommand(cmd);
             }
         }
         ImGui::SameLine();
-        ImGui::InputText("Amount", buf, std::size(buf), ImGuiInputTextFlags_CharsDecimal);
+        ImGui::InputText("Amount", buf.data(), buf.size(), ImGuiInputTextFlags_CharsDecimal);
     }
     //todo: make this work
     //if (ImGui::Button("Inspect", ImVec2(ImGui::GetContentRegionAvail().x * 0.2, 0))) {
     //  QUIHelper::inspect();
     //}
 
-    if(!_cached) {
+    if(!g_cached) {
         cache();
     }
 
