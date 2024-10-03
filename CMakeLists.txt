@@ -5,7 +5,7 @@ message("Using toolchain file ${CMAKE_TOOLCHAIN_FILE}.")
 ########################################################################################################################
 project(
 	dmenu
-	VERSION 1.1.0.1
+	VERSION 1.1.0.2
 	DESCRIPTION ""
 	LANGUAGES CXX
 )
@@ -109,6 +109,8 @@ message(STATUS "CommonLibSSE Path: ${CommonLibSSE}")
 add_subdirectory(${CommonLibSSE} CommonLibSSE-NG)
 include(${CommonLibSSE}/cmake/CommonLibSSE.cmake)
 
+find_package(directxtk CONFIG REQUIRED)
+
 find_package(nlohmann_json CONFIG REQUIRED)
 
 find_package(xbyak REQUIRED CONFIG)
@@ -136,7 +138,8 @@ target_link_libraries(
 		PRIVATE
 		nlohmann_json::nlohmann_json
 		imgui::imgui
-		xbyak::xbyak)
+		xbyak::xbyak
+		Microsoft::DirectXTK)
 
 target_precompile_headers(${PROJECT_NAME}
 		PRIVATE

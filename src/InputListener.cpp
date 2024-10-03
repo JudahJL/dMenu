@@ -340,7 +340,7 @@ void InputListener::ProcessEvent(RE::InputEvent** a_event) {
     for(const auto* event{ *a_event }; event; event = event->next) {
         switch(event->eventType.get()) {
             case RE::INPUT_EVENT_TYPE::kChar:
-                io.AddInputCharacter(event->AsCharEvent()->keycode);
+                io.AddInputCharacter(event->AsCharEvent()->keyCode);
                 break;
             case RE::INPUT_EVENT_TYPE::kButton: {
                 const auto* button{ event->AsButtonEvent() };
